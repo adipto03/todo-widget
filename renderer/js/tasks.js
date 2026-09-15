@@ -161,11 +161,12 @@ const Tasks = (() => {
         el('div', { class: 'meta' },
           due ? el('span', { class: 'due', html: Icons.clock }, overdue ? `${due} · overdue` : due) : null,
           t.category ? el('span', { class: 'cat', style: { '--h': categoryHue(t.category) }, text: t.category }) : null,
+          t.calendarId ? el('span', { class: 'from-cal', html: Icons.calendar, title: `From ${Calendars.nameOf(t.calendarId) || 'a linked calendar'}` }) : null,
           el('span', { class: 'imp-label', text: LABEL[t.importance] }),
           t.repeat && !t.done ? el('span', { class: 'repeat', html: Icons.repeat, title: `Repeats: ${repeatLabel(t)}` }, repeatLabel(t)) : null,
           !t.done && t.date && remind >= 0 ? el('span', { class: 'bell', html: Icons.bell, title: 'Reminder on' }) : null)),
       t.link ? el('button', {
-        class: 'icon-btn link-btn', type: 'button', html: Icons.external, title: 'Open in Canvas',
+        class: 'icon-btn link-btn', type: 'button', html: Icons.external, title: 'Open link',
         onclick: () => bridge?.openExternal(t.link),
       }) : null,
       el('button', { class: 'icon-btn del', type: 'button', title: 'Delete', html: Icons.trash, onclick: () => remove(t.id) }));
@@ -192,13 +193,13 @@ const Tasks = (() => {
     const index = tasks.findIndex((t) => t.id === id);
     if (index < 0) return;
     const [task] = tasks.splice(index, 1);
-    // An imported assignment the user deleted shouldn't come back on the next Canvas sync.
-    if (task.source === 'canvas') Canvas.forget(task.externalId, true);
+    // An imported event the user deleted shouldn't come back on the next calendar sync.
+    if (task.calendarId) Calendars.forget(task, true);
     save();
     render();
     Toast.show(`Deleted "${task.title.slice(0, 30)}"`, () => {
       tasks.splice(Math.min(index, tasks.length), 0, task);
-      if (task.source === 'canvas') Canvas.forget(task.externalId, false);
+      if (task.calendarId) Calendars.forget(task, false);
       save();
       render();
     });
@@ -321,14 +322,14 @@ const Tasks = (() => {
     return { title: 'Your tasks today', body: parts.join(' · ') + (names ? `\n${names}` : ''), view: 'tasks' };
   }
 
-  // ---------- imports (Canvas) ----------
+  // ---------- imports (linked calendars) ----------
   // Adds or updates a task that comes from outside the widget. Call commit() after a batch.
   function upsertExternal(item) {
     const existing = tasks.find((t) => t.externalId === item.externalId);
     if (existing) {
       if (existing.done) return { id: existing.id, created: false, changed: false };
       let changed = false;
-      for (const k of ['title', 'date', 'time', 'link']) {
+      for (const k of ['title', 'date', 'time', 'link', 'endAt']) {
         if (existing[k] !== item[k]) {
           existing[k] = item[k];
           changed = true;
@@ -347,8 +348,10 @@ const Tasks = (() => {
       done: false,
       createdAt: Date.now(),
       source: item.source,
+      calendarId: item.calendarId,
       externalId: item.externalId,
       link: item.link,
+      endAt: item.endAt,
     };
     tasks.push(task);
     return { id: task.id, created: true, changed: true };
@@ -357,6 +360,15 @@ const Tasks = (() => {
   function commit() {
     save();
     render();
+  }
+
+  // Removes matching tasks without asking, e.g. calendar events that are over or were cancelled.
+  function removeWhere(test) {
+    const before = tasks.length;
+    tasks = tasks.filter((t) => !test(t));
+    const removed = before - tasks.length;
+    if (removed) commit();
+    return removed;
   }
 
   // ---------- wiring ----------
@@ -444,6 +456,8 @@ const Tasks = (() => {
     summary,
     upsertExternal,
     commit,
+    removeWhere,
+    isOverdue,
     list: () => tasks,
     nextOccurrence,
   };

@@ -7,9 +7,8 @@ const Backup = (() => {
 
   function snapshot() {
     const data = {};
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key.startsWith(PREFIX) && !SKIP.has(key)) data[key] = localStorage.getItem(key);
+    for (const key of Storage.keys()) {
+      if (key.startsWith(PREFIX) && !SKIP.has(key)) data[key] = Storage.getItem(key);
     }
     return { app: 'todo-widget', version: 1, exportedAt: new Date().toISOString(), data };
   }
@@ -62,13 +61,8 @@ const Backup = (() => {
   }
 
   function apply(backup) {
-    const existing = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key.startsWith(PREFIX)) existing.push(key);
-    }
-    existing.forEach((key) => localStorage.removeItem(key));
-    for (const [key, value] of Object.entries(backup.data)) localStorage.setItem(key, value);
+    // Written to disk before the reload, so the restored data is what loads.
+    Storage.replaceAll(backup.data);
     location.reload();
   }
 
@@ -76,8 +70,8 @@ const Backup = (() => {
   function autoDaily() {
     if (!bridge || !Settings.data.backup.auto) return;
     const today = Dates.key();
-    if (localStorage.getItem(LAST_AUTO_KEY) === today) return;
-    localStorage.setItem(LAST_AUTO_KEY, today); // mark first, so a failing disk doesn't retry every few seconds
+    if (Storage.getItem(LAST_AUTO_KEY) === today) return;
+    Storage.setItem(LAST_AUTO_KEY, today); // mark first, so a failing disk doesn't retry every few seconds
     bridge.autoBackup(serialize(), today).catch(() => {});
   }
 

@@ -1,7 +1,7 @@
 {
   "name": "todo-widget",
-  "version": "1.0.0",
-  "description": "A desktop widget for Windows with tasks, a monthly habit tracker, prayer times, a Deen tab, a journal and stats",
+  "version": "1.1.0",
+  "description": "A desktop widget for Windows with tasks, a monthly habit tracker, prayer times, a Deen tab, a journal, goals and linked calendars",
   "author": "adipto03",
   "license": "MIT",
   "main": "main.js",

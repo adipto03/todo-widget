@@ -1,5 +1,5 @@
-// Deen tab: prayers marked today and this week, Quran reading progress, a tasbih counter,
-// Qibla direction and upcoming Islamic dates.
+// Deen tab: a daily Quran verse or hadith (reflections.js), prayers marked today and this week,
+// Quran reading progress, a tasbih counter, upcoming Islamic dates and the Qibla direction.
 const Deen = (() => {
   const KEY = 'todo-widget.deen';
   const TOTAL_PAGES = 604;
@@ -18,6 +18,7 @@ const Deen = (() => {
     {
       quran: { page: 0, khatams: 0, goalDate: '', log: {} },
       tasbih: { phrase: PHRASES[0], target: 33, day: '', counts: {}, totals: {} },
+      folded: {},
     },
     Store.get(KEY, {}),
   );
@@ -236,11 +237,32 @@ const Deen = (() => {
       el('span', { class: 'deen-date-rel', text: relative(item.offset) }))));
   }
 
-  // ---------- used by Stats ----------
+  // ---------- used by Goals ----------
   const pagesIn = (keys) => keys.reduce((sum, k) => sum + (data.quran.log[k] || 0), 0);
   const dhikrIn = (keys) => keys.reduce((sum, k) => sum + (data.tasbih.totals[k] || 0), 0);
+  const lastReadDay = () => Object.keys(data.quran.log).filter((k) => k <= Dates.key() && data.quran.log[k] > 0).sort().pop() || null;
+
+  // ---------- folding cards away ----------
+  function initFolding() {
+    for (const card of $$('#view-deen .card[data-card]')) {
+      const btn = $('.card-fold', card);
+      const apply = () => {
+        const folded = !!data.folded[card.dataset.card];
+        card.classList.toggle('folded', folded);
+        btn.setAttribute('aria-expanded', String(!folded));
+        btn.title = folded ? 'Show' : 'Fold away';
+      };
+      btn.addEventListener('click', () => {
+        data.folded[card.dataset.card] = !data.folded[card.dataset.card];
+        save();
+        apply();
+      });
+      apply();
+    }
+  }
 
   function render() {
+    Reflections.render();
     renderPrayers();
     renderQuran();
     renderTasbih();
@@ -249,6 +271,8 @@ const Deen = (() => {
   }
 
   function init() {
+    Reflections.init();
+    initFolding();
     for (const btn of $$('[data-pages]')) btn.addEventListener('click', () => addPages(Number(btn.dataset.pages)));
     $('#quran-edit').addEventListener('click', openQuranForm);
     $('#q-cancel').addEventListener('click', () => Sheet.close());
@@ -276,5 +300,5 @@ const Deen = (() => {
     });
   }
 
-  return { init, render, renderPrayers, pagesIn, dhikrIn };
+  return { init, render, renderPrayers, pagesIn, dhikrIn, lastReadDay };
 })();

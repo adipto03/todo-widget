@@ -85,7 +85,7 @@
           <div id="habit-table-wrap" class="habit-table-wrap">
             <table id="habit-table" class="habit-table"></table>
           </div>
-          <p id="habit-hint" class="habit-hint">Click a box to tick it off. For number habits, click to enter the amount.</p>
+          <p id="habit-hint" class="habit-hint">Click a box to tick it off, or right-click it to add a note. For number habits, click to enter the amount and a note.</p>
           <div id="habit-empty" class="empty" hidden>
             <span data-icon="habits"></span>
             <p>No habits yet.<br>Press + to track one, like "Read 20 pages" or "Pray on time".</p>
@@ -100,14 +100,40 @@
           <span id="deen-stats" class="stats"></span>
         </div>
         <div class="scroller">
-          <section class="card">
-            <div class="card-head"><h3>Prayers</h3><span id="deen-prayed-count" class="card-sub"></span></div>
+          <section class="card reflection" id="reflection-card" data-card="reminder">
+            <div class="card-head">
+              <h3><button type="button" class="card-fold" aria-expanded="true"><span data-icon="chevronDown"></span>Daily reminder</button></h3>
+              <span class="card-actions">
+                <button type="button" id="reflection-today" class="link" hidden>Back to today</button>
+                <button type="button" id="reflection-save" class="icon-btn sm save-btn" data-icon="bookmark" title="Save this reminder" aria-label="Save this reminder" aria-pressed="false"></button>
+              </span>
+            </div>
+            <div id="reflection-cats" class="cat-bar reflection-cats" role="tablist" aria-label="Reminder categories"></div>
+            <div id="reflection-body" class="reflection-body" aria-live="polite"></div>
+            <div class="reflection-foot">
+              <div id="reflection-nav" class="reflection-nav">
+                <button type="button" id="reflection-prev" class="icon-btn sm" data-icon="chevronLeft" title="Previous" aria-label="Previous reminder"></button>
+                <span id="reflection-count" class="reflection-count"></span>
+                <button type="button" id="reflection-next" class="icon-btn sm" data-icon="chevronRight" title="Next" aria-label="Next reminder"></button>
+              </div>
+              <button type="button" id="reflection-source" class="link source-link" title="Read the full text"><span id="reflection-source-label"></span><span data-icon="external"></span></button>
+            </div>
+          </section>
+
+          <section class="card" data-card="prayers">
+            <div class="card-head">
+              <h3><button type="button" class="card-fold" aria-expanded="true"><span data-icon="chevronDown"></span>Prayers</button></h3>
+              <span id="deen-prayed-count" class="card-sub"></span>
+            </div>
             <ul id="deen-prayers" class="deen-prayers"></ul>
             <div id="deen-week" class="deen-week"></div>
           </section>
 
-          <section class="card">
-            <div class="card-head"><h3>Quran</h3><button type="button" id="quran-edit" class="link">Edit</button></div>
+          <section class="card" data-card="quran">
+            <div class="card-head">
+              <h3><button type="button" class="card-fold" aria-expanded="true"><span data-icon="chevronDown"></span>Quran reading</button></h3>
+              <button type="button" id="quran-edit" class="link">Edit</button>
+            </div>
             <div class="quran-main">
               <div class="quran-page"><b id="quran-page"></b><span id="quran-juz" class="card-sub"></span></div>
               <div class="quran-actions">
@@ -121,8 +147,11 @@
             <p id="quran-note" class="card-sub"></p>
           </section>
 
-          <section class="card">
-            <div class="card-head"><h3>Tasbih</h3><span id="tasbih-today" class="card-sub"></span></div>
+          <section class="card" data-card="tasbih">
+            <div class="card-head">
+              <h3><button type="button" class="card-fold" aria-expanded="true"><span data-icon="chevronDown"></span>Tasbih</button></h3>
+              <span id="tasbih-today" class="card-sub"></span>
+            </div>
             <div id="tasbih-phrases" class="quick tasbih-phrases"></div>
             <button type="button" id="tasbih-btn" class="tasbih-btn" aria-label="Count one">
               <span id="tasbih-count" class="tasbih-count">0</span>
@@ -142,18 +171,22 @@
             </div>
           </section>
 
-          <section class="card">
-            <div class="card-head"><h3>Qibla</h3></div>
+          <section class="card" data-card="dates">
+            <div class="card-head">
+              <h3><button type="button" class="card-fold" aria-expanded="true"><span data-icon="chevronDown"></span>Coming up</button></h3>
+            </div>
+            <ul id="deen-dates" class="deen-dates"></ul>
+            <p class="card-sub">Islamic dates use the Umm al-Qura calendar and can differ by a day where you live.</p>
+          </section>
+
+          <section class="card" data-card="qibla">
+            <div class="card-head">
+              <h3><button type="button" class="card-fold" aria-expanded="true"><span data-icon="chevronDown"></span>Qibla</button></h3>
+            </div>
             <div class="qibla">
               <span id="qibla-dial" class="qibla-dial" aria-hidden="true"><span class="qibla-n">N</span><span class="qibla-needle" data-icon="needle"></span></span>
               <div><b id="qibla-deg" class="qibla-deg"></b><span id="qibla-hint" class="card-sub"></span></div>
             </div>
-          </section>
-
-          <section class="card">
-            <div class="card-head"><h3>Coming up</h3></div>
-            <ul id="deen-dates" class="deen-dates"></ul>
-            <p class="card-sub">Islamic dates use the Umm al-Qura calendar and can differ by a day where you live.</p>
           </section>
         </div>
       </section>
@@ -221,17 +254,13 @@
         </form>
       </section>
 
-      <!-- ===== Stats ===== -->
-      <section id="view-stats" class="view" hidden>
+      <!-- ===== Goals ===== -->
+      <section id="view-goals" class="view" hidden>
         <div class="view-head">
-          <h2>Stats</h2>
-          <span class="stats"></span>
-          <div class="range-toggle" id="stats-range">
-            <button type="button" class="chip selected" data-range="week">7 days</button>
-            <button type="button" class="chip" data-range="month">This month</button>
-          </div>
+          <h2>Goals</h2>
+          <span id="goals-stats" class="stats"></span>
         </div>
-        <div id="stats-body" class="scroller"></div>
+        <div id="goals-body" class="scroller"></div>
       </section>
     </main>
 
@@ -242,7 +271,7 @@
       <button class="nav-btn" data-view="habits"><span class="nav-icon" data-icon="habits"></span>Habits</button>
       <button class="nav-btn" data-view="deen"><span class="nav-icon" data-icon="deen"></span>Deen</button>
       <button class="nav-btn" data-view="journal"><span class="nav-icon" data-icon="journal"></span>Journal</button>
-      <button class="nav-btn" data-view="stats"><span class="nav-icon" data-icon="stats"></span>Stats</button>
+      <button class="nav-btn" data-view="goals"><span class="nav-icon" data-icon="target"></span>Goals</button>
     </nav>
 
     <div id="toast" class="toast" hidden>
@@ -355,6 +384,11 @@
         <div id="h-colors" class="colors"></div>
       </div>
 
+      <div id="h-notes-field" class="field" hidden>
+        <span>Notes</span>
+        <ul id="h-notes" class="habit-notes"></ul>
+      </div>
+
       <div class="actions">
         <button type="button" id="h-delete" class="btn danger" hidden>Delete</button>
         <span class="spacer"></span>
@@ -366,10 +400,15 @@
     <!-- ===== Habit day value ===== -->
     <form id="habit-day-form" class="sheet" hidden autocomplete="off">
       <h2 id="hd-title"></h2>
-      <div class="hd-row">
+      <div id="hd-amount-row" class="hd-row">
         <input id="hd-value" type="number" min="0" step="any" class="input big" aria-label="Amount">
         <span id="hd-goal" class="hd-goal"></span>
       </div>
+      <label id="hd-done-row" class="set-row"><span>Done</span><input id="hd-done" type="checkbox" class="switch"></label>
+      <label class="field">
+        <span>Note (optional)</span>
+        <textarea id="hd-note" class="hd-note" maxlength="280" rows="3" placeholder="What did you do? e.g. 30 min run, 3 km"></textarea>
+      </label>
       <div class="actions">
         <button type="button" id="hd-clear" class="btn danger">Clear</button>
         <span class="spacer"></span>
@@ -394,6 +433,57 @@
       </div>
     </form>
 
+    <!-- ===== Goal form ===== -->
+    <form id="goal-form" class="sheet" hidden autocomplete="off">
+      <h2 id="goal-form-title">New goal</h2>
+      <label class="field">
+        <span>What do you want to track?</span>
+        <select id="g-type">
+          <option value="tasks">Tasks finished</option>
+          <option value="habit">A habit</option>
+          <option value="prayers" data-deen>Prayers</option>
+          <option value="quran" data-deen>Quran pages read</option>
+          <option value="dhikr" data-deen>Dhikr (tasbih count)</option>
+          <option value="journal">Journal entries</option>
+        </select>
+      </label>
+      <div id="g-habit-field" class="row">
+        <label class="field"><span>Habit</span><select id="g-habit"></select></label>
+        <label class="field" id="g-habit-metric-field">
+          <span>Count</span>
+          <select id="g-habit-metric">
+            <option value="days">Days the goal was met</option>
+            <option value="total">Total amount</option>
+          </select>
+        </label>
+      </div>
+      <label class="field" id="g-cat-field"><span>Category</span><select id="g-cat"></select></label>
+      <label class="field" id="g-prayer-field">
+        <span>Count</span>
+        <select id="g-prayer-metric">
+          <option value="days">Days all 5 were prayed</option>
+          <option value="count">Every prayer marked</option>
+        </select>
+      </label>
+      <div class="row">
+        <label class="field"><span>Target</span><input id="g-target" type="number" min="1" max="100000" step="any" required></label>
+        <label class="field">
+          <span>Every</span>
+          <select id="g-period">
+            <option value="week">Week</option>
+            <option value="month">Month</option>
+          </select>
+        </label>
+      </div>
+      <p id="g-hint" class="hint"></p>
+      <div class="actions">
+        <button type="button" id="g-delete" class="btn danger" hidden>Delete</button>
+        <span class="spacer"></span>
+        <button type="button" id="g-cancel" class="btn ghost">Cancel</button>
+        <button type="submit" id="g-submit" class="btn primary">Add goal</button>
+      </div>
+    </form>
+
     <!-- ===== Settings ===== -->
     <div id="settings" class="sheet settings" hidden>
       <div class="sheet-head">
@@ -410,7 +500,7 @@
         </div>
         <label class="set-row"><span>Show prayer times card</span><input type="checkbox" class="switch" data-setting="prayer.showCard"></label>
         <label class="set-row"><span>Show Deen tab</span><input type="checkbox" class="switch" data-setting="tabs.deen"></label>
-        <label class="set-row"><span>Show Stats tab</span><input type="checkbox" class="switch" data-setting="tabs.stats"></label>
+        <label class="set-row"><span>Show Goals tab</span><input type="checkbox" class="switch" data-setting="tabs.goals"></label>
       </section>
 
       <section class="set-section" id="set-prayer">
@@ -505,6 +595,53 @@
         <button type="button" id="s-test-notify" class="btn ghost full">Send a test notification</button>
       </section>
 
+      <section class="set-section" id="set-calendars">
+        <h3>Linked calendars</h3>
+        <p class="hint">See events and deadlines from Google Calendar, Outlook, Apple iCloud, Canvas or any calendar that has a sharing link. They show up in Tasks.</p>
+        <ul id="cal-list" class="cal-list" hidden></ul>
+        <button type="button" id="cal-add" class="btn ghost full"><span class="inline-icon" data-icon="plus"></span>Link a calendar</button>
+        <div id="cal-form" class="set-card" hidden>
+          <label class="set-field"><span>Calendar link</span><input id="cal-url" class="input" type="password" placeholder="https://… or webcal://…" autocomplete="off" spellcheck="false"></label>
+          <div class="row">
+            <label class="set-field"><span>Name</span><input id="cal-name" class="input" maxlength="30" placeholder="e.g. Work"></label>
+            <label class="set-field">
+              <span>Add as</span>
+              <select id="cal-kind" class="input">
+                <option value="event">Events</option>
+                <option value="todo">To-dos</option>
+              </select>
+            </label>
+          </div>
+          <p class="hint">Events leave Tasks once they're over. To-dos, like assignments, stay until you tick them off.</p>
+          <details class="cal-help">
+            <summary>Where do I find the link?</summary>
+            <ul>
+              <li><b>Google Calendar</b> (on a computer): Settings → click your calendar under "Settings for my calendars" → copy <b>Secret address in iCal format</b>.</li>
+              <li><b>Outlook</b>: Settings → Calendar → Shared calendars → <b>Publish a calendar</b> → pick the calendar and "Can view all details" → Publish → copy the <b>ICS</b> link.</li>
+              <li><b>Apple iCloud</b>: in the Calendar app, share the calendar, turn on <b>Public Calendar</b> and copy the link.</li>
+              <li><b>Canvas</b>: Calendar → <b>Calendar Feed</b> (bottom right) → copy the link.</li>
+            </ul>
+          </details>
+          <p id="cal-msg" class="hint" hidden></p>
+          <div class="actions">
+            <span class="spacer"></span>
+            <button type="button" id="cal-cancel" class="btn ghost">Cancel</button>
+            <button type="button" id="cal-save" class="btn primary">Link calendar</button>
+          </div>
+        </div>
+        <label class="set-row">
+          <span>Show events up to</span>
+          <select id="cal-days" class="input time">
+            <option value="7">1 week ahead</option>
+            <option value="14">2 weeks ahead</option>
+            <option value="30">1 month ahead</option>
+            <option value="90">3 months ahead</option>
+          </select>
+        </label>
+        <label class="set-row"><span>Check for changes every 3 hours</span><input type="checkbox" class="switch" id="cal-auto"></label>
+        <p class="hint">Keep these links private. Anyone who has a link can see that calendar.</p>
+      </section>
+
       <section class="set-section" id="set-journal">
         <h3>Journal lock</h3>
         <label class="set-row"><span>Lock the journal with a PIN</span><input type="checkbox" class="switch" id="s-lock"></label>
@@ -540,24 +677,6 @@
         <button type="button" id="s-backup-folder" class="btn ghost full">Open backups folder</button>
       </section>
 
-      <section class="set-section" id="set-canvas">
-        <details class="integration" id="canvas-details">
-          <summary><h3>Canvas assignments</h3><span class="summary-sub">Optional, for students</span></summary>
-          <div class="integration-body">
-            <p class="hint">In Canvas, open <b>Calendar</b>, click <b>Calendar Feed</b> (bottom right) and copy the link. Your upcoming assignments are added to Tasks with their due dates.</p>
-            <label class="set-field"><span>Calendar feed link</span><input id="canvas-url" class="input" type="password" placeholder="https://…/feeds/calendars/user_….ics" autocomplete="off" spellcheck="false"></label>
-            <p class="hint">Keep this link private. Anyone who has it can see your Canvas calendar.</p>
-            <label class="set-row"><span>Check for new assignments every 3 hours</span><input type="checkbox" class="switch" id="canvas-auto"></label>
-            <div class="actions">
-              <button type="button" id="canvas-disconnect" class="btn danger" hidden>Disconnect</button>
-              <span class="spacer"></span>
-              <button type="button" id="canvas-sync" class="btn primary">Import now</button>
-            </div>
-            <p id="canvas-status" class="hint" hidden></p>
-          </div>
-        </details>
-      </section>
-
       <section class="set-section" id="set-general">
         <h3>General</h3>
         <div class="set-row" id="s-hotkey-row">
@@ -579,10 +698,13 @@
   <script src="js/prayer.js"></script>
   <script src="js/tasks.js"></script>
   <script src="js/habits.js"></script>
+  <script src="js/reflections-data.js"></script>
+  <script src="js/quran-arabic.js"></script>
+  <script src="js/reflections.js"></script>
   <script src="js/deen.js"></script>
   <script src="js/journal.js"></script>
-  <script src="js/stats.js"></script>
-  <script src="js/canvas.js"></script>
+  <script src="js/goals.js"></script>
+  <script src="js/calendars.js"></script>
   <script src="js/backup.js"></script>
   <script src="js/settings.js"></script>
   <script src="js/app.js"></script>

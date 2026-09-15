@@ -52,6 +52,105 @@ function saveState() {
   saveTimer = setTimeout(writeState, 300);
 }
 
+// ---------- saved data ----------
+// Everything the widget stores (tasks, habits, notes, settings…) lives in widget-data.json and is
+// written to disk within a moment of each change, and again when the app quits. It used to live in
+// Chromium's localStorage, which could lose recent changes when the app was closed.
+const dataFile = () => path.join(app.getPath('userData'), 'widget-data.json');
+const previousDataFile = () => path.join(app.getPath('userData'), 'widget-data.previous.json');
+let dataStore = null;
+let dataTimer = null;
+let dataDirty = false;
+
+function readDataFile(file) {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
+    if (parsed && parsed.data && typeof parsed.data === 'object' && !Array.isArray(parsed.data)) return parsed.data;
+  } catch {}
+  return null;
+}
+
+function loadData() {
+  if (dataStore) return { exists: true, data: dataStore };
+  if (!fs.existsSync(dataFile())) return { exists: false, data: {} };
+  let data = readDataFile(dataFile());
+  if (data) {
+    // Keep a copy of the last good file in case the next write is ever interrupted.
+    try { fs.copyFileSync(dataFile(), previousDataFile()); } catch {}
+  } else {
+    data = readDataFile(previousDataFile());
+    try { fs.renameSync(dataFile(), path.join(app.getPath('userData'), `widget-data.damaged-${Date.now()}.json`)); } catch {}
+    if (!data) return { exists: false, data: {} };
+    dataDirty = true;
+  }
+  dataStore = data;
+  if (dataDirty) writeDataNow();
+  return { exists: true, data };
+}
+
+function writeDataNow() {
+  clearTimeout(dataTimer);
+  dataTimer = null;
+  if (!dataDirty || !dataStore) return;
+  const json = JSON.stringify({ app: 'todo-widget', version: 1, savedAt: new Date().toISOString(), data: dataStore });
+  const tmp = `${dataFile()}.tmp`;
+  try {
+    fs.writeFileSync(tmp, json, 'utf8');
+    fs.renameSync(tmp, dataFile());
+    dataDirty = false;
+  } catch {
+    try {
+      fs.writeFileSync(dataFile(), json, 'utf8');
+      dataDirty = false;
+    } catch (err) {
+      console.warn('Could not save data:', err.message);
+    }
+  }
+}
+
+function scheduleDataWrite() {
+  dataDirty = true;
+  if (!dataTimer) dataTimer = setTimeout(writeDataNow, 200);
+}
+
+const isDataKey = (key) => typeof key === 'string' && key.startsWith('todo-widget.');
+
+ipcMain.on('storage:load', (e) => {
+  e.returnValue = loadData();
+});
+ipcMain.on('storage:set', (_e, key, value) => {
+  if (!isDataKey(key)) return;
+  dataStore ??= {};
+  if (typeof value === 'string') dataStore[key] = value;
+  else delete dataStore[key];
+  scheduleDataWrite();
+});
+// Replaces everything at once (first start, restoring a backup) and writes before returning.
+ipcMain.on('storage:replace', (e, data) => {
+  const clean = {};
+  for (const [key, value] of Object.entries(data || {})) if (isDataKey(key) && typeof value === 'string') clean[key] = value;
+  dataStore = clean;
+  dataDirty = true;
+  writeDataNow();
+  e.returnValue = !dataDirty;
+});
+// Note: a sync reply is sent the moment returnValue is first set, so it's set exactly once.
+ipcMain.on('storage:latest-backup', (e) => {
+  let result = null;
+  try {
+    const dir = path.join(app.getPath('userData'), 'backups');
+    const files = fs.readdirSync(dir).filter((f) => /^auto-\d{4}-\d{2}-\d{2}\.json$/.test(f)).sort().reverse();
+    for (const file of files) {
+      const data = readDataFile(path.join(dir, file));
+      if (data) {
+        result = { file, data };
+        break;
+      }
+    }
+  } catch {}
+  e.returnValue = result;
+});
+
 function isOnScreen(b) {
   return screen.getAllDisplays().some(({ workArea: a }) =>
     b.x < a.x + a.width - 50 &&
@@ -258,9 +357,13 @@ function createWindow() {
   win.setMenu(null);
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
   win.once('ready-to-show', () => {
+    // --hidden starts the widget in the tray without showing it.
+    if (app.commandLine.hasSwitch('hidden')) return;
     win.show();
     if (state.pinned) pin.enable();
   });
+  // Windows is shutting down or signing out: save right now.
+  win.on('session-end', writeDataNow);
 
   const rememberBounds = () => {
     if (win.isMinimized() || win.isMaximized()) return;
@@ -407,26 +510,32 @@ ipcMain.handle('backup:open-folder', async () => {
   return shell.openPath(backupsDir());
 });
 
-// ---------- Canvas calendar feed ----------
-ipcMain.handle('canvas:fetch', async (_e, url) => {
+// ---------- linked calendars (.ics links from Google, Outlook, iCloud, Canvas, …) ----------
+const MAX_CALENDAR_CHARS = 20 * 1024 * 1024;
+
+ipcMain.handle('calendar:fetch', async (_e, url) => {
   let parsed;
   try {
-    parsed = new URL(String(url));
+    parsed = new URL(String(url).trim().replace(/^webcals?:\/\//i, 'https://'));
   } catch {
     throw new Error('That link is not valid.');
   }
-  if (parsed.protocol !== 'https:' || !/\/feeds\/calendars\//.test(parsed.pathname)) {
-    throw new Error("That isn't a Canvas calendar feed link.");
+  if (parsed.protocol !== 'https:') throw new Error('Calendar links need to start with https:// or webcal://');
+  let res;
+  try {
+    res = await fetch(parsed, { signal: AbortSignal.timeout(20000), headers: { Accept: 'text/calendar, */*' } });
+  } catch {
+    throw new Error("Couldn't connect. Check your internet connection and the link.");
   }
-  const res = await fetch(parsed, { signal: AbortSignal.timeout(20000) });
-  if (!res.ok) throw new Error(`Canvas returned an error (${res.status}). Check the link.`);
+  if (!res.ok) throw new Error(`The calendar server returned an error (${res.status}). Check the link.`);
+  if (Number(res.headers.get('content-length')) > MAX_CALENDAR_CHARS) throw new Error('That calendar is too large to import.');
   const text = await res.text();
-  if (text.length > 10 * 1024 * 1024) throw new Error('The calendar feed is too large.');
-  if (!text.includes('BEGIN:VCALENDAR')) throw new Error("The link didn't return a calendar.");
+  if (text.length > MAX_CALENDAR_CHARS) throw new Error('That calendar is too large to import.');
+  if (!text.includes('BEGIN:VCALENDAR')) throw new Error("That link didn't return a calendar. Make sure you copied the iCal (.ics) link.");
   return text;
 });
 
-// Links from imported assignments open in the normal browser; only web links are allowed.
+// Links from imported events and the Deen tab open in the normal browser; only web links are allowed.
 ipcMain.on('open-external', (_e, url) => {
   try {
     if (new URL(String(url)).protocol === 'https:') shell.openExternal(String(url));
@@ -520,6 +629,10 @@ app.on('before-quit', () => {
   quitting = true;
   clearTimeout(saveTimer);
   writeState();
+  writeDataNow();
 });
-app.on('will-quit', () => globalShortcut.unregisterAll());
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
+  writeDataNow();
+});
 app.on('window-all-closed', () => app.quit());

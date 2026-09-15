@@ -1,6 +1,10 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('widget', {
+  storageLoad: () => ipcRenderer.sendSync('storage:load'),
+  storageSet: (key, value) => ipcRenderer.send('storage:set', key, value),
+  storageReplace: (data) => ipcRenderer.sendSync('storage:replace', data),
+  storageLatestBackup: () => ipcRenderer.sendSync('storage:latest-backup'),
   hide: () => ipcRenderer.send('win:hide'),
   show: () => ipcRenderer.send('win:show'),
   togglePin: () => ipcRenderer.invoke('win:toggle-pin'),
@@ -20,6 +24,6 @@ contextBridge.exposeInMainWorld('widget', {
   openBackup: () => ipcRenderer.invoke('backup:open'),
   autoBackup: (json, day) => ipcRenderer.invoke('backup:auto', json, day),
   openBackupsFolder: () => ipcRenderer.invoke('backup:open-folder'),
-  fetchCalendar: (url) => ipcRenderer.invoke('canvas:fetch', url),
+  fetchCalendar: (url) => ipcRenderer.invoke('calendar:fetch', url),
   openExternal: (url) => ipcRenderer.send('open-external', url),
 });

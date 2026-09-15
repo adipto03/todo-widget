@@ -47,5 +47,10 @@ const Notifier = (() => {
     send({ title: 'Notifications are working', body: "You'll get reminders like this for tasks, habits and prayers." });
   }
 
-  return { tick, test };
+  // One-off messages from other parts of the widget, like a goal being reached.
+  function announce(message) {
+    if (Settings.data.notifications.enabled) send(message);
+  }
+
+  return { tick, test, announce };
 })();

@@ -20,6 +20,7 @@ const Habits = (() => {
   let data = Store.get(KEY, null);
   if (!data || !Array.isArray(data.habits)) data = { habits: [], logs: {} };
   data.logs ??= {};
+  data.notes ??= {}; // { habitId: { 'YYYY-MM-DD': 'what I did' } }
 
   let viewMonth = startOfMonth(new Date());
   let editingId = null;
@@ -44,10 +45,17 @@ const Habits = (() => {
   const formatNum = (n) => String(Math.round(n * 100) / 100);
   const dayLabel = (key) => Dates.parse(key).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 
-  function setValue(h, key, value) {
+  const noteOf = (h, key) => data.notes[h.id]?.[key] || '';
+
+  function setValue(h, key, value, note) {
     const logs = (data.logs[h.id] ??= {});
     if (!value || value <= 0) delete logs[key];
     else logs[key] = value;
+    if (note !== undefined) {
+      const notes = (data.notes[h.id] ??= {});
+      if (note) notes[key] = note;
+      else delete notes[key];
+    }
     save();
     render();
   }
@@ -163,16 +171,21 @@ const Habits = (() => {
       const status = h.type === 'count'
         ? `${formatNum(v)}/${formatNum(h.goal)}${h.unit ? ` ${h.unit}` : ''}`
         : met ? 'done' : 'not done';
-      const label = `${h.name}, ${dayLabel(key)}${future ? '' : `: ${status}`}`;
+      const note = noteOf(h, key);
+      const label = `${h.name}, ${dayLabel(key)}${future ? '' : `: ${status}`}${note ? `\nNote: ${note}` : ''}`;
       const button = el('button', {
         type: 'button',
-        class: ['cell', met && 'met', !met && f > 0 && 'partial', future && 'future'].filter(Boolean).join(' '),
+        class: ['cell', met && 'met', !met && f > 0 && 'partial', future && 'future', note && 'has-note'].filter(Boolean).join(' '),
         style: { '--f': f },
         disabled: future,
-        title: label,
+        title: future ? label : `${label}\n${h.type === 'count' ? 'Click to enter the amount or a note' : 'Right-click to add a note'}`,
         'aria-label': label,
         html: h.type !== 'count' && met ? Icons.check : null,
         onclick: () => (h.type === 'count' ? openDay(h, key) : setValue(h, key, v ? 0 : 1)),
+        oncontextmenu: (e) => {
+          e.preventDefault();
+          openDay(h, key);
+        },
       }, h.type === 'count' && v ? formatNum(v) : null);
       return el('td', { class: key === todayKey ? 'today' : null }, button);
     });
@@ -180,15 +193,35 @@ const Habits = (() => {
     return el('tr', { style: { '--h': h.hue ?? HUES[0] } }, nameCell, cells);
   }
 
-  // ---------- exact amount for a day ----------
+  // ---------- one day: amount or tick, plus an optional note ----------
   function openDay(h, key) {
+    if (key > Dates.key()) return;
+    const isCount = h.type === 'count';
     dayTarget = { id: h.id, key };
     $('#hd-title').textContent = `${h.emoji ? `${h.emoji} ` : ''}${h.name} · ${dayLabel(key)}`;
+    $('#hd-amount-row').hidden = !isCount;
+    $('#hd-done-row').hidden = isCount;
     $('#hd-value').value = valueOf(h, key) || '';
     $('#hd-goal').textContent = `/ ${formatNum(h.goal)}${h.unit ? ` ${h.unit}` : ''}`;
+    $('#hd-done').checked = valueOf(h, key) > 0;
+    $('#hd-note').value = noteOf(h, key);
     Sheet.open(dayForm, () => { dayTarget = null; });
-    $('#hd-value').focus();
-    $('#hd-value').select();
+    if (isCount) {
+      $('#hd-value').focus();
+      $('#hd-value').select();
+    } else {
+      $('#hd-note').focus();
+    }
+  }
+
+  // Recent notes for a habit, shown when editing it.
+  function renderNotes(h) {
+    const entries = Object.entries(data.notes[h?.id] || {}).sort((a, b) => (a[0] < b[0] ? 1 : -1)).slice(0, 30);
+    $('#h-notes-field').hidden = !entries.length;
+    $('#h-notes').replaceChildren(...entries.map(([key, text]) => el('li', {},
+      el('button', { type: 'button', class: 'habit-note', title: 'Open this day', onclick: () => openDay(h, key) },
+        el('span', { class: 'habit-note-date', text: dayLabel(key) }),
+        el('span', { class: 'habit-note-text', text })))));
   }
 
   // ---------- add / edit ----------
@@ -208,6 +241,7 @@ const Habits = (() => {
     syncType();
     renderColors();
     renderEmojiPicker();
+    renderNotes(h);
     Sheet.open(form, () => { editingId = null; });
     $('#h-name').focus();
   }
@@ -248,12 +282,15 @@ const Habits = (() => {
     if (index < 0) return;
     const [habit] = data.habits.splice(index, 1);
     const logs = data.logs[id];
+    const notes = data.notes[id];
     delete data.logs[id];
+    delete data.notes[id];
     save();
     render();
     Toast.show(`Deleted "${habit.name}"`, () => {
       data.habits.splice(Math.min(index, data.habits.length), 0, habit);
       if (logs) data.logs[id] = logs;
+      if (notes) data.notes[id] = notes;
       save();
       render();
     });
@@ -280,6 +317,14 @@ const Habits = (() => {
   }
 
   const metCountOn = (key) => data.habits.filter((h) => isMet(h, key)).length;
+
+  // The most recent day, up to today, that the habit's goal was met; null if never.
+  function lastMet(id) {
+    const h = find(id);
+    if (!h) return null;
+    const today = Dates.key();
+    return Object.keys(data.logs[id] || {}).filter((k) => k <= today && isMet(h, k)).sort().pop() || null;
+  }
 
   // ---------- notifications ----------
   function checkin() {
@@ -340,13 +385,30 @@ const Habits = (() => {
       const target = dayTarget;
       const h = target && find(target.id);
       Sheet.close();
-      if (h) setValue(h, target.key, parseFloat($('#hd-value').value) || 0);
+      if (!h) return;
+      const value = h.type === 'count' ? parseFloat($('#hd-value').value) || 0 : $('#hd-done').checked ? 1 : 0;
+      setValue(h, target.key, value, $('#hd-note').value.trim());
+    });
+    // Enter saves; Shift+Enter starts a new line in the note.
+    $('#hd-note').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        dayForm.requestSubmit();
+      }
+    });
+    // Writing a note for a tick habit usually means it was done today.
+    $('#hd-note').addEventListener('input', () => {
+      const target = dayTarget;
+      const h = target && find(target.id);
+      if (h && h.type !== 'count' && !noteOf(h, target.key) && $('#hd-note').value.trim() && !valueOf(h, target.key)) {
+        $('#hd-done').checked = true;
+      }
     });
     $('#hd-clear').addEventListener('click', () => {
       const target = dayTarget;
       const h = target && find(target.id);
       Sheet.close();
-      if (h) setValue(h, target.key, 0);
+      if (h) setValue(h, target.key, 0, '');
     });
     $('#hd-cancel').addEventListener('click', () => Sheet.close());
   }
@@ -359,7 +421,9 @@ const Habits = (() => {
     setFromPrayers,
     statsFor,
     metCountOn,
-    list: () => data.habits.map((h) => ({ id: h.id, name: h.name, emoji: h.emoji, type: h.type })),
+    lastMet,
+    noteOf: (id, key) => data.notes[id]?.[key] || '',
+    list: () => data.habits.map((h) => ({ id: h.id, name: h.name, emoji: h.emoji, type: h.type, goal: h.goal, unit: h.unit, createdAt: h.createdAt })),
     goToToday: () => { viewMonth = startOfMonth(new Date()); scrollToToday = true; render(); },
   };
 })();

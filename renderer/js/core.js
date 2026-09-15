@@ -6,17 +6,90 @@ const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 const pad = (n) => String(n).padStart(2, '0');
 const uid = () => crypto.randomUUID();
 
+// ---------- saved data ----------
+// In the desktop app everything is saved in widget-data.json by the main process, which writes each
+// change to disk straight away. (Chromium's localStorage, used before, could lose changes on quit.)
+// In a plain browser this falls back to localStorage.
+const Storage = (() => {
+  const PREFIX = 'todo-widget.';
+  const IGNORE = new Set(['todo-widget.persist-check']);
+
+  if (!bridge) {
+    const keys = () => Object.keys(localStorage).filter((k) => k.startsWith(PREFIX));
+    return {
+      getItem: (k) => localStorage.getItem(k),
+      setItem: (k, v) => localStorage.setItem(k, String(v)),
+      removeItem: (k) => localStorage.removeItem(k),
+      keys,
+      replaceAll(data) {
+        keys().forEach((k) => localStorage.removeItem(k));
+        for (const [k, v] of Object.entries(data)) localStorage.setItem(k, v);
+      },
+    };
+  }
+
+  const loaded = bridge.storageLoad();
+  let map = { ...loaded.data };
+
+  if (!loaded.exists) {
+    // First start with the data file: bring over what was saved in localStorage. If that came up
+    // empty, start from the newest automatic backup instead so nothing is lost.
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key.startsWith(PREFIX) && !IGNORE.has(key)) map[key] = localStorage.getItem(key);
+    }
+    // localStorage could come up partly empty, so fill anything missing (or an empty task, habit or
+    // note list) from the newest automatic backup.
+    const hasContent = (data, key) => {
+      try {
+        const value = JSON.parse(data[key] ?? 'null');
+        return Array.isArray(value) ? value.length > 0 : value?.habits?.length > 0;
+      } catch {
+        return false;
+      }
+    };
+    const backup = bridge.storageLatestBackup();
+    if (backup) {
+      for (const [key, value] of Object.entries(backup.data)) {
+        const isList = ['todo-widget.tasks', 'todo-widget.habits', 'todo-widget.notes'].includes(key);
+        if (!Object.hasOwn(map, key) || (isList && !hasContent(map, key) && hasContent(backup.data, key))) map[key] = value;
+      }
+    }
+    bridge.storageReplace(map);
+  }
+
+  return {
+    getItem: (k) => (Object.hasOwn(map, k) ? map[k] : null),
+    setItem(k, v) {
+      const value = String(v);
+      if (map[k] === value) return;
+      map[k] = value;
+      bridge.storageSet(k, value);
+    },
+    removeItem(k) {
+      if (!Object.hasOwn(map, k)) return;
+      delete map[k];
+      bridge.storageSet(k, null);
+    },
+    keys: () => Object.keys(map).filter((k) => k.startsWith(PREFIX)),
+    replaceAll(data) {
+      map = { ...data };
+      bridge.storageReplace(map);
+    },
+  };
+})();
+
 const Store = {
   get(key, fallback) {
     try {
-      const value = JSON.parse(localStorage.getItem(key));
+      const value = JSON.parse(Storage.getItem(key));
       return value ?? fallback;
     } catch {
       return fallback;
     }
   },
   set(key, value) {
-    localStorage.setItem(key, JSON.stringify(value));
+    Storage.setItem(key, JSON.stringify(value));
   },
 };
 
@@ -64,6 +137,9 @@ const Icons = {
   lock: '<svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>',
   external: '<svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>',
   needle: '<svg viewBox="0 0 24 24"><path d="M12 2l4 10h-8z" fill="currentColor"/><path d="M8 12l4 10 4-10"/></svg>',
+  bookmark: '<svg viewBox="0 0 24 24"><path d="M6.5 3.5h11v17l-5.5-4-5.5 4z"/></svg>',
+  calendar: '<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
+  target: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>',
 };
 
 // A stable colour for a category name, so the same category always gets the same tint.
@@ -139,7 +215,7 @@ const DEFAULT_SETTINGS = {
     showCard: true,
     linkedHabit: '',
   },
-  tabs: { deen: true, stats: true },
+  tabs: { deen: true, goals: true },
   journalLock: { enabled: false, salt: '', hash: '' },
   backup: { auto: true },
 };
@@ -158,7 +234,13 @@ const Settings = {
   KEY: 'todo-widget.settings',
   data: null,
   load() {
-    this.data = mergeDefaults(DEFAULT_SETTINGS, Store.get(this.KEY, {}));
+    const saved = Store.get(this.KEY, {});
+    // The Stats tab became Goals; keep it hidden for anyone who had turned Stats off.
+    if (saved.tabs && 'stats' in saved.tabs) {
+      saved.tabs.goals ??= saved.tabs.stats;
+      delete saved.tabs.stats;
+    }
+    this.data = mergeDefaults(DEFAULT_SETTINGS, saved);
   },
   save() {
     Store.set(this.KEY, this.data);
@@ -181,7 +263,7 @@ const Theme = (() => {
   const KEY = 'todo-widget.theme';
   const media = matchMedia('(prefers-color-scheme: dark)');
   const mode = () => {
-    const saved = localStorage.getItem(KEY);
+    const saved = Storage.getItem(KEY);
     return saved === 'dark' || saved === 'light' ? saved : 'system';
   };
   const resolved = () => (mode() === 'system' ? (media.matches ? 'dark' : 'light') : mode());
@@ -196,8 +278,8 @@ const Theme = (() => {
   }
 
   function set(value) {
-    if (value === 'system') localStorage.removeItem(KEY);
-    else localStorage.setItem(KEY, value);
+    if (value === 'system') Storage.removeItem(KEY);
+    else Storage.setItem(KEY, value);
     apply();
   }
 

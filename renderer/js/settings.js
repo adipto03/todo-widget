@@ -1,5 +1,5 @@
-// Settings sheet: theme and tabs, prayer location and method, notifications, journal lock, backup,
-// Canvas import, keyboard shortcut and start with Windows.
+// Settings sheet: theme and tabs, prayer location and method, notifications, linked calendars,
+// journal lock, backup, keyboard shortcut and start with Windows.
 const SettingsPanel = (() => {
   const panel = $('#settings');
 
@@ -21,7 +21,7 @@ const SettingsPanel = (() => {
     if (themeRadio) themeRadio.checked = true;
     renderLocation();
     syncLock();
-    Canvas.syncUi();
+    Calendars.syncUi();
   }
 
   function renderLocation() {
@@ -327,8 +327,6 @@ const SettingsPanel = (() => {
         }
       });
     }
-
-    Canvas.init();
 
     if (bridge) {
       // Backup

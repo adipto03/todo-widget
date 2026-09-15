@@ -1,15 +1,16 @@
 // Ties the widget together: header, tab switching, window controls, dragging, keyboard shortcuts and the clock.
 const App = (() => {
   const VIEW_KEY = 'todo-widget.view';
-  const ALL_VIEWS = ['tasks', 'habits', 'deen', 'journal', 'stats'];
-  const ADD_LABEL = { tasks: 'Add task', habits: 'Add habit', journal: 'New note' };
+  const ALL_VIEWS = ['tasks', 'habits', 'deen', 'journal', 'goals'];
+  const ADD_LABEL = { tasks: 'Add task', habits: 'Add habit', journal: 'New note', goals: 'Add goal' };
 
-  let view = localStorage.getItem(VIEW_KEY) || 'tasks';
+  let view = Storage.getItem(VIEW_KEY) || 'tasks';
+  if (view === 'stats') view = 'goals';
   let lastDay = Dates.key();
 
   const enabledViews = () => ALL_VIEWS.filter((v) => {
     if (v === 'deen') return Settings.data.tabs.deen;
-    if (v === 'stats') return Settings.data.tabs.stats;
+    if (v === 'goals') return Settings.data.tabs.goals;
     return true;
   });
 
@@ -21,7 +22,7 @@ const App = (() => {
       Journal.lockNow();
     }
     view = name;
-    localStorage.setItem(VIEW_KEY, name);
+    Storage.setItem(VIEW_KEY, name);
 
     const locked = name === 'journal' && Journal.isLocked;
     const editing = name === 'journal' && !locked && Journal.isEditing;
@@ -31,7 +32,7 @@ const App = (() => {
     $('#view-journal').hidden = name !== 'journal' || editing || locked;
     $('#note-editor').hidden = !editing;
     $('#journal-lock').hidden = !locked;
-    $('#view-stats').hidden = name !== 'stats';
+    $('#view-goals').hidden = name !== 'goals';
 
     for (const btn of $$('.nav-btn')) {
       btn.hidden = !views.includes(btn.dataset.view);
@@ -48,13 +49,14 @@ const App = (() => {
 
     if (name === 'habits') Habits.render();
     if (name === 'deen') Deen.render();
-    if (name === 'stats') Stats.render();
+    if (name === 'goals') Goals.render();
     if (locked) $('#lock-pin').focus();
   }
 
   function add() {
     if (view === 'tasks') Tasks.openForm();
     else if (view === 'habits') Habits.openForm();
+    else if (view === 'goals') Goals.openForm();
     else if (view === 'journal' && !Journal.isLocked) Journal.create();
   }
 
@@ -110,19 +112,23 @@ const App = (() => {
     Prayer.render();
     if (!Sheet.isOpen) Tasks.render();
     if (view === 'deen') Deen.render();
+    if (view === 'goals' && !Sheet.isOpen) Goals.render();
     Notifier.tick();
     Backup.autoDaily();
-    Canvas.autoSync();
+    Calendars.cleanup();
+    Calendars.autoSync();
+    Goals.checkReached();
   }
 
   function init() {
     fillIcons();
     Tasks.init();
+    Calendars.init();
     Habits.init();
     Deen.init();
     Journal.init();
     Prayer.init();
-    Stats.init();
+    Goals.init();
     SettingsPanel.init();
     initDrag();
 
@@ -182,7 +188,7 @@ const App = (() => {
     document.addEventListener('prayers-changed', () => {
       Prayer.render();
       if (view === 'deen') Deen.render();
-      if (view === 'stats') Stats.render();
+      if (view === 'goals') Goals.render();
     });
 
     show(view);
@@ -193,7 +199,9 @@ const App = (() => {
     Prayer.render();
     Notifier.tick();
     Backup.autoDaily();
-    Canvas.autoSync();
+    Calendars.cleanup();
+    Calendars.autoSync();
+    Goals.checkReached();
     setInterval(tick, 15000);
   }
 
