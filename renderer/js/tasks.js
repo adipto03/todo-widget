@@ -13,8 +13,13 @@ const Tasks = (() => {
     done: 'No completed tasks yet.',
   };
 
+  const GROUPS_KEY = 'todo-widget.taskGroups';
+
   let tasks = Store.get(KEY, []);
   if (!Array.isArray(tasks)) tasks = [];
+  // Tasks sharing a category fold into one row; `open` remembers which groups are expanded.
+  const groups = mergeDefaults({ enabled: true, open: {} }, Store.get(GROUPS_KEY, {}));
+  const saveGroups = () => Store.set(GROUPS_KEY, groups);
   let filter = 'all';
   let categoryFilter = 'all';
   let editingId = null;
@@ -133,7 +138,11 @@ const Tasks = (() => {
   // ---------- list ----------
   function render() {
     const visible = tasks.filter(matchesFilter).sort(compareTasks);
-    $('#task-list').replaceChildren(...visible.map(taskElement));
+    $('#task-list').replaceChildren(...listItems(visible));
+    const toggle = $('#group-toggle');
+    toggle.classList.toggle('active', groups.enabled);
+    toggle.title = groups.enabled ? 'Grouped by category (click to show every task)' : 'Group tasks by category';
+    toggle.setAttribute('aria-pressed', String(groups.enabled));
     $('#task-empty').hidden = visible.length > 0;
     $('#task-empty-text').innerText = categoryFilter !== 'all' ? `No tasks in "${categoryFilter}" here.` : EMPTY_TEXT[filter];
 
@@ -144,6 +153,54 @@ const Tasks = (() => {
     if (overdue) stats.append(el('span', { class: 'warn', text: ` · ${overdue} overdue` }));
 
     renderCategoryFilter();
+  }
+
+  // With grouping on, any category with 2+ tasks in view becomes one collapsible row, placed where
+  // its most urgent task would be.
+  function listItems(visible) {
+    if (!groups.enabled || categoryFilter !== 'all') return visible.map(taskElement);
+    const byCategory = new Map();
+    for (const t of visible) {
+      if (t.category) byCategory.set(t.category, [...(byCategory.get(t.category) || []), t]);
+    }
+    const items = [];
+    const placed = new Set();
+    for (const t of visible) {
+      const members = t.category ? byCategory.get(t.category) : null;
+      if (!members || members.length < 2) items.push(taskElement(t));
+      else if (!placed.has(t.category)) {
+        placed.add(t.category);
+        items.push(groupElement(t.category, members));
+      }
+    }
+    return items;
+  }
+
+  function groupElement(category, members) {
+    const open = !!groups.open[category];
+    const todo = members.filter((t) => !t.done);
+    const overdue = todo.filter(isOverdue).length;
+    const next = todo.find((t) => t.date);
+    const counts = [todo.length ? `${todo.length} to do` : '', members.length > todo.length ? `${members.length - todo.length} done` : ''].filter(Boolean).join(' · ');
+    const dueText = overdue ? `${overdue} overdue` : next ? formatDue({ date: next.date }) : '';
+    return el('li', { class: `task-group${open ? ' open' : ''}` },
+      el('button', {
+        type: 'button',
+        class: 'group-head',
+        'aria-expanded': String(open),
+        title: open ? 'Fold these tasks away' : `Show ${members.length} tasks`,
+        onclick: () => {
+          groups.open[category] = !open;
+          if (!groups.open[category]) delete groups.open[category];
+          saveGroups();
+          render();
+        },
+      },
+      el('span', { class: 'group-chev', html: Icons.chevronRight }),
+      el('span', { class: 'cat', style: { '--h': categoryHue(category) }, text: category }),
+      el('span', { class: 'group-count', text: counts }),
+      dueText ? el('span', { class: `group-due${overdue ? ' warn' : ''}`, text: dueText }) : null),
+      open ? el('ul', { class: 'list group-items' }, members.map(taskElement)) : null);
   }
 
   function taskElement(t) {
@@ -383,6 +440,11 @@ const Tasks = (() => {
 
     $('#cat-filter').addEventListener('change', (e) => {
       categoryFilter = e.target.value;
+      render();
+    });
+    $('#group-toggle').addEventListener('click', () => {
+      groups.enabled = !groups.enabled;
+      saveGroups();
       render();
     });
 

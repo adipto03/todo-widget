@@ -238,12 +238,78 @@ function ensureStartMenuShortcut() {
   }
 }
 
+// ---------- automatic updates ----------
+// Installed copies check GitHub Releases for a newer version, download it in the background and
+// install it the next time the widget quits (or straight away with "Restart to update").
+let updateStatus = { state: app.isPackaged ? 'idle' : 'dev', version: app.getVersion() };
+let updater = null;
+
+function setUpdateStatus(patch) {
+  updateStatus = { ...updateStatus, ...patch };
+  if (win && !win.isDestroyed()) win.webContents.send('update-status', updateStatus);
+  buildTrayMenu();
+}
+
+function checkForUpdates() {
+  if (!updater || ['checking', 'downloading', 'ready'].includes(updateStatus.state)) return;
+  updater.checkForUpdates().catch((err) => setUpdateStatus({ state: 'error', error: String(err?.message || err).slice(0, 200) }));
+}
+
+function setupUpdates() {
+  if (!app.isPackaged) return;
+  try {
+    ({ autoUpdater: updater } = require('electron-updater'));
+  } catch {
+    return;
+  }
+  updater.autoDownload = true;
+  updater.autoInstallOnAppQuit = true;
+  updater.on('checking-for-update', () => setUpdateStatus({ state: 'checking', error: '' }));
+  updater.on('update-available', (info) => setUpdateStatus({ state: 'downloading', available: info.version, percent: 0 }));
+  updater.on('download-progress', (p) => setUpdateStatus({ state: 'downloading', percent: Math.round(p.percent) }));
+  updater.on('update-not-available', () => setUpdateStatus({ state: 'current', checkedAt: Date.now() }));
+  updater.on('update-downloaded', (info) => {
+    setUpdateStatus({ state: 'ready', available: info.version });
+    if (!Notification.isSupported()) return;
+    const n = new Notification({
+      title: 'Update ready',
+      body: `To-Do Widget ${info.version} installs when the widget restarts. Click to restart now.`,
+      icon: makeIcon(64),
+    });
+    liveNotifications.add(n);
+    n.on('click', () => { liveNotifications.delete(n); installUpdate(); });
+    n.on('close', () => liveNotifications.delete(n));
+    n.show();
+  });
+  updater.on('error', (err) => {
+    if (updateStatus.state !== 'ready') setUpdateStatus({ state: 'error', error: String(err?.message || err).slice(0, 200) });
+  });
+  setTimeout(checkForUpdates, 15 * 1000);
+  setInterval(checkForUpdates, 6 * 60 * 60 * 1000);
+}
+
+function installUpdate() {
+  if (!updater || updateStatus.state !== 'ready') return;
+  quitting = true;
+  writeState();
+  writeDataNow();
+  updater.quitAndInstall(true, true); // install quietly, then open the widget again
+}
+
+ipcMain.handle('app:update-status', () => updateStatus);
+ipcMain.handle('app:check-updates', () => {
+  checkForUpdates();
+  return updateStatus;
+});
+ipcMain.on('app:install-update', installUpdate);
+
 // ---------- tray ----------
 const prettyHotkey = (accelerator) => accelerator.replace('Control', 'Ctrl').replace('Super', 'Win');
 
 function buildTrayMenu() {
   if (!tray) return;
   tray.setContextMenu(Menu.buildFromTemplate([
+    ...(updateStatus.state === 'ready' ? [{ label: `Restart to update to ${updateStatus.available}`, click: installUpdate }, { type: 'separator' }] : []),
     { label: activeHotkey ? `Show widget (${prettyHotkey(activeHotkey)})` : 'Show widget', click: showWindow },
     { type: 'separator' },
     { label: 'Pin to desktop', type: 'checkbox', checked: !!state.pinned, enabled: pin.available, click: (item) => setPinned(item.checked) },
@@ -624,6 +690,7 @@ app.whenReady().then(() => {
   // A saved empty string means the user turned the shortcut off; only a missing value gets the default.
   registerHotkey(state.hotkey ?? DEFAULT_HOTKEY);
   buildTrayMenu();
+  setupUpdates();
 });
 app.on('before-quit', () => {
   quitting = true;

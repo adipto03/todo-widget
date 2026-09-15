@@ -372,11 +372,32 @@ const Calendars = (() => {
   }
 
   // ---------- turning events into tasks ----------
+  // Long course codes like "2026FallC-T-PSY101-67106-WEDNE" become "PSY 101". Anything that doesn't
+  // look like a subject and course number is left as it is.
+  function shortCourse(code) {
+    const m = /(?:^|[^A-Za-z])([A-Z]{2,4})[\s-]?(\d{3}[A-Z]?)(?!\d)/.exec(code);
+    return m ? `${m[1]} ${m[2]}` : code;
+  }
+
   // Canvas titles look like "Lab 3 Report [CHM 113 (2026 Fall)]"; the course code becomes the category.
   function splitSummary(summary) {
     const m = /^(.*?)\s*\[([^\]]+)\]\s*$/.exec(summary);
     if (!m) return { title: summary.trim(), course: '' };
-    return { title: m[1].trim() || summary.trim(), course: m[2].replace(/\s*\(.*\)\s*$/, '').trim() };
+    return { title: m[1].trim() || summary.trim(), course: shortCourse(m[2].replace(/\s*\(.*\)\s*$/, '').trim()) };
+  }
+
+  // Tasks imported before course codes were shortened get the short name too.
+  function shortenImportedCourses() {
+    let changed = false;
+    for (const t of Tasks.list()) {
+      if (!t.category || find(t.calendarId)?.provider !== 'canvas') continue;
+      const short = shortCourse(t.category);
+      if (short !== t.category) {
+        t.category = short;
+        changed = true;
+      }
+    }
+    if (changed) Tasks.commit();
   }
 
   function toTask(cal, o, today) {
@@ -672,6 +693,7 @@ const Calendars = (() => {
 
   function init() {
     migrateCanvas();
+    shortenImportedCourses();
     if (!bridge) {
       $('#set-calendars').hidden = true;
       return;
@@ -701,7 +723,7 @@ const Calendars = (() => {
 
   return {
     init, syncUi, sync, autoSync, cleanup, forget, nameOf,
-    parseIcs, parseWhen, occurrences, splitSummary, normalizeUrl, providerOf,
+    parseIcs, parseWhen, occurrences, splitSummary, shortCourse, normalizeUrl, providerOf,
     list: () => data.list,
   };
 })();

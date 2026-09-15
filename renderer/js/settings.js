@@ -290,6 +290,47 @@ const SettingsPanel = (() => {
     else setHotkeyHint(`${prettyHotkey(result.accelerator)} is already used by another app. Try a different one.`, true);
   }
 
+  // ---------- updates ----------
+  let updateStatus = null;
+  let updateBarDismissed = false;
+
+  function describeUpdate(s) {
+    switch (s.state) {
+      case 'dev': return 'Automatic updates work in the installed app.';
+      case 'checking': return 'Checking for updates…';
+      case 'downloading': return `Downloading version ${s.available}${s.percent ? ` (${s.percent}%)` : ''}…`;
+      case 'ready': return `Version ${s.available} is ready. It installs when the widget restarts.`;
+      case 'current': return 'You have the latest version. Updates download and install automatically.';
+      case 'error': return 'Couldn’t check for updates right now. It will try again later.';
+      default: return 'Updates download and install automatically.';
+    }
+  }
+
+  function applyUpdateStatus(s) {
+    updateStatus = s;
+    $('#s-version').textContent = s.version;
+    $('#s-update-status').textContent = describeUpdate(s);
+    const btn = $('#s-update-btn');
+    btn.textContent = s.state === 'ready' ? 'Restart now' : 'Check for updates';
+    btn.disabled = ['dev', 'checking', 'downloading'].includes(s.state);
+    $('#update-bar').hidden = s.state !== 'ready' || updateBarDismissed;
+    $('#update-bar-text').textContent = `Version ${s.available} is ready to install`;
+  }
+
+  function initUpdates() {
+    bridge.getUpdateStatus().then(applyUpdateStatus);
+    bridge.onUpdateStatus(applyUpdateStatus);
+    $('#s-update-btn').addEventListener('click', async () => {
+      if (updateStatus?.state === 'ready') bridge.installUpdate();
+      else applyUpdateStatus(await bridge.checkForUpdates());
+    });
+    $('#update-bar-btn').addEventListener('click', () => bridge.installUpdate());
+    $('#update-bar-close').addEventListener('click', () => {
+      updateBarDismissed = true;
+      $('#update-bar').hidden = true;
+    });
+  }
+
   function init() {
     $('#s-method').replaceChildren(...Prayer.METHODS.map(([key, label]) => new Option(label, key)));
 
@@ -342,6 +383,8 @@ const SettingsPanel = (() => {
       $('#s-backup-folder').addEventListener('click', () => bridge.openBackupsFolder());
       setBackupStatus('Daily backups are kept for 7 days.');
 
+      initUpdates();
+
       // Window
       bridge.getSettings().then(syncStartup);
       $('#s-startup').addEventListener('change', (e) => bridge.setOpenAtLogin(e.target.checked));
@@ -358,6 +401,8 @@ const SettingsPanel = (() => {
       $('#s-startup-row').hidden = true;
       $('#s-hotkey-row').hidden = true;
       $('#s-hotkey-hint').hidden = true;
+      $('#s-update-row').hidden = true;
+      $('#s-update-status').hidden = true;
     }
   }
 

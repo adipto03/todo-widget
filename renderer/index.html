@@ -21,6 +21,12 @@
       </div>
     </header>
 
+    <div id="update-bar" class="update-bar" role="status" hidden>
+      <span id="update-bar-text"></span>
+      <button type="button" id="update-bar-btn" class="btn primary small">Restart</button>
+      <button type="button" id="update-bar-close" class="icon-btn sm" data-icon="close" title="Later" aria-label="Remind me later"></button>
+    </div>
+
     <!-- ===== Prayer times ===== -->
     <section id="prayer" class="prayer">
       <div id="prayer-setup" class="prayer-setup" hidden>
@@ -54,6 +60,7 @@
         <div class="view-head">
           <h2>Tasks</h2>
           <span id="task-stats" class="stats"></span>
+          <button type="button" id="group-toggle" class="icon-btn sm" data-icon="layers" aria-label="Group tasks by category"></button>
           <select id="cat-filter" class="mini-select" aria-label="Filter by category"></select>
         </div>
         <nav class="tabs" id="task-tabs">
@@ -688,6 +695,11 @@
         </div>
         <p id="s-hotkey-hint" class="hint">Press it anywhere in Windows to show or hide the widget.</p>
         <label class="set-row" id="s-startup-row"><span>Start with Windows</span><input type="checkbox" class="switch" id="s-startup"></label>
+        <div class="set-row" id="s-update-row">
+          <span>Version <b id="s-version"></b></span>
+          <button type="button" id="s-update-btn" class="btn ghost small">Check for updates</button>
+        </div>
+        <p id="s-update-status" class="hint"></p>
         <p class="hint">Drag the widget by its header to move it. Right-click the tray icon for more options. Your tasks, habits and notes are saved on this computer.</p>
       </section>
     </div>

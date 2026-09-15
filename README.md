@@ -21,6 +21,8 @@ Everything is saved on your own computer. There's no account and nothing is uplo
 
 Every new install starts empty. Works on Windows 10 and 11 (64-bit).
 
+From version 1.1.1 the widget **updates itself**: it downloads new versions in the background and installs them the next time it restarts (or straight away from the "Restart" bar). If you have 1.0.0 or 1.1.0, install 1.1.1 once by hand to get this.
+
 ### Tips
 
 - Drag the widget by its header to move it. Resize it from the edges.
@@ -50,6 +52,7 @@ npm run dist
 - Your data stays in `%APPDATA%\todo-widget` on your computer.
 - City search for prayer times sends only the city name you type to [Open-Meteo](https://open-meteo.com/)'s geocoding service.
 - Linked calendars (off unless you add a link) only download the calendars you link.
+- The installed app checks this repository's GitHub Releases for updates every few hours.
 
 ## Credits
 

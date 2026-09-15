@@ -26,4 +26,8 @@ contextBridge.exposeInMainWorld('widget', {
   openBackupsFolder: () => ipcRenderer.invoke('backup:open-folder'),
   fetchCalendar: (url) => ipcRenderer.invoke('calendar:fetch', url),
   openExternal: (url) => ipcRenderer.send('open-external', url),
+  getUpdateStatus: () => ipcRenderer.invoke('app:update-status'),
+  checkForUpdates: () => ipcRenderer.invoke('app:check-updates'),
+  installUpdate: () => ipcRenderer.send('app:install-update'),
+  onUpdateStatus: (cb) => ipcRenderer.on('update-status', (_e, status) => cb(status)),
 });

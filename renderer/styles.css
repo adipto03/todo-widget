@@ -126,6 +126,22 @@ svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; 
 .icon-btn.sm svg { width: 15px; height: 15px; }
 #close-btn:hover { background: var(--danger); color: #fff; }
 
+/* ---------- update ready ---------- */
+.update-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 12px 10px;
+  padding: 6px 4px 6px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  background: var(--accent-soft);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+.update-bar span { flex: 1; min-width: 0; }
+
 /* ---------- prayer card ---------- */
 .prayer {
   flex: none;
@@ -359,6 +375,33 @@ svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; 
   color: hsl(var(--h) 55% var(--tint-text-l));
   font-weight: 500;
 }
+
+.meta .cat { max-width: 150px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+/* Tasks that share a category, folded into one row */
+.task-group { overflow: hidden; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); }
+.group-head {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 12px;
+  border: 0;
+  background: transparent;
+  font-size: 12.5px;
+  text-align: left;
+}
+.group-head:hover { background: var(--surface-2); }
+.group-chev { flex: none; display: grid; color: var(--muted); transition: transform 0.15s; }
+.group-chev svg { width: 14px; height: 14px; }
+.task-group.open .group-chev { transform: rotate(90deg); }
+.group-head .cat { flex: 0 1 auto; min-width: 0; overflow: hidden; font-size: 12px; white-space: nowrap; text-overflow: ellipsis; }
+.group-count { flex: none; color: var(--muted); white-space: nowrap; }
+.group-due { flex: none; margin-left: auto; font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+.group-due.warn { color: var(--danger); font-weight: 600; }
+.group-items { padding: 0 6px 6px; }
+.group-items .task { box-shadow: none; }
 
 .del { opacity: 0; width: 26px; height: 26px; }
 .task:hover .del, .del:focus-visible { opacity: 1; }
