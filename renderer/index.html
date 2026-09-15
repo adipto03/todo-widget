@@ -1,0 +1,590 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:">
+  <title>To-Do Widget</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app" id="app">
+    <header class="titlebar">
+      <div class="dates">
+        <div id="greg-date" class="greg"></div>
+        <div id="hijri-date" class="hijri"></div>
+      </div>
+      <div class="win-actions">
+        <button id="theme-btn" class="icon-btn" title="Toggle dark / light mode" aria-label="Toggle theme"></button>
+        <button id="settings-btn" class="icon-btn" data-icon="gear" title="Settings" aria-label="Settings"></button>
+        <button id="pin-btn" class="icon-btn" data-icon="pin" title="Pin to desktop (stays behind other windows)" aria-label="Pin to desktop"></button>
+        <button id="close-btn" class="icon-btn" data-icon="close" title="Hide to tray" aria-label="Hide to tray"></button>
+      </div>
+    </header>
+
+    <!-- ===== Prayer times ===== -->
+    <section id="prayer" class="prayer">
+      <div id="prayer-setup" class="prayer-setup" hidden>
+        <div>
+          <strong>Prayer times</strong>
+          <span id="prayer-setup-text"></span>
+        </div>
+        <button type="button" id="prayer-setup-btn" class="btn primary small">Set location</button>
+      </div>
+      <div id="prayer-body" hidden>
+        <button type="button" id="prayer-head" class="prayer-head" aria-expanded="true" title="Show or hide all prayer times">
+          <span class="next">
+            <span class="next-label">Next prayer</span>
+            <span id="next-name" class="next-name"></span>
+            <span id="next-time" class="next-time"></span>
+          </span>
+          <span id="next-countdown" class="countdown"></span>
+          <span class="chev" data-icon="chevronDown"></span>
+        </button>
+        <ol id="prayer-list" class="prayer-list"></ol>
+        <div class="prayer-foot">
+          <span id="prayer-loc" class="prayer-loc"></span>
+          <button type="button" id="prayer-change" class="link">Change</button>
+        </div>
+      </div>
+    </section>
+
+    <main class="views">
+      <!-- ===== Tasks ===== -->
+      <section id="view-tasks" class="view">
+        <div class="view-head">
+          <h2>Tasks</h2>
+          <span id="task-stats" class="stats"></span>
+          <select id="cat-filter" class="mini-select" aria-label="Filter by category"></select>
+        </div>
+        <nav class="tabs" id="task-tabs">
+          <button class="tab active" data-filter="all">All</button>
+          <button class="tab" data-filter="today">Today</button>
+          <button class="tab" data-filter="upcoming">Upcoming</button>
+          <button class="tab" data-filter="done">Done</button>
+        </nav>
+        <div class="scroller">
+          <ul id="task-list" class="list"></ul>
+          <div id="task-empty" class="empty" hidden>
+            <span data-icon="tasks"></span>
+            <p id="task-empty-text"></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== Habits ===== -->
+      <section id="view-habits" class="view" hidden>
+        <div class="view-head">
+          <h2 id="habit-month"></h2>
+          <span id="habit-stats" class="stats"></span>
+          <div class="month-nav">
+            <button id="habit-prev" class="icon-btn sm" data-icon="chevronLeft" title="Previous month" aria-label="Previous month"></button>
+            <button id="habit-next" class="icon-btn sm" data-icon="chevronRight" title="Next month" aria-label="Next month"></button>
+          </div>
+        </div>
+        <div class="scroller">
+          <div id="habit-table-wrap" class="habit-table-wrap">
+            <table id="habit-table" class="habit-table"></table>
+          </div>
+          <p id="habit-hint" class="habit-hint">Click a box to tick it off. For number habits, click to enter the amount.</p>
+          <div id="habit-empty" class="empty" hidden>
+            <span data-icon="habits"></span>
+            <p>No habits yet.<br>Press + to track one, like "Read 20 pages" or "Pray on time".</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== Deen ===== -->
+      <section id="view-deen" class="view" hidden>
+        <div class="view-head">
+          <h2>Deen</h2>
+          <span id="deen-stats" class="stats"></span>
+        </div>
+        <div class="scroller">
+          <section class="card">
+            <div class="card-head"><h3>Prayers</h3><span id="deen-prayed-count" class="card-sub"></span></div>
+            <ul id="deen-prayers" class="deen-prayers"></ul>
+            <div id="deen-week" class="deen-week"></div>
+          </section>
+
+          <section class="card">
+            <div class="card-head"><h3>Quran</h3><button type="button" id="quran-edit" class="link">Edit</button></div>
+            <div class="quran-main">
+              <div class="quran-page"><b id="quran-page"></b><span id="quran-juz" class="card-sub"></span></div>
+              <div class="quran-actions">
+                <button type="button" class="btn ghost small" data-pages="-1" title="Take back one page">−1</button>
+                <button type="button" class="btn ghost small" data-pages="1" title="Read one page">+1</button>
+                <button type="button" class="btn ghost small" data-pages="5" title="Read five pages">+5</button>
+                <button type="button" class="btn ghost small" data-pages="20" title="One juz is about 20 pages">+Juz</button>
+              </div>
+            </div>
+            <span class="bar-track big"><span id="quran-bar" class="bar-fill"></span></span>
+            <p id="quran-note" class="card-sub"></p>
+          </section>
+
+          <section class="card">
+            <div class="card-head"><h3>Tasbih</h3><span id="tasbih-today" class="card-sub"></span></div>
+            <div id="tasbih-phrases" class="quick tasbih-phrases"></div>
+            <button type="button" id="tasbih-btn" class="tasbih-btn" aria-label="Count one">
+              <span id="tasbih-count" class="tasbih-count">0</span>
+              <small id="tasbih-target" class="tasbih-target"></small>
+            </button>
+            <div class="tasbih-foot">
+              <label class="tasbih-goal">Goal
+                <select id="tasbih-goal" class="mini-select">
+                  <option value="33">33</option>
+                  <option value="99">99</option>
+                  <option value="100">100</option>
+                  <option value="1000">1000</option>
+                  <option value="0">No goal</option>
+                </select>
+              </label>
+              <button type="button" id="tasbih-reset" class="link">Reset</button>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="card-head"><h3>Qibla</h3></div>
+            <div class="qibla">
+              <span id="qibla-dial" class="qibla-dial" aria-hidden="true"><span class="qibla-n">N</span><span class="qibla-needle" data-icon="needle"></span></span>
+              <div><b id="qibla-deg" class="qibla-deg"></b><span id="qibla-hint" class="card-sub"></span></div>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="card-head"><h3>Coming up</h3></div>
+            <ul id="deen-dates" class="deen-dates"></ul>
+            <p class="card-sub">Islamic dates use the Umm al-Qura calendar and can differ by a day where you live.</p>
+          </section>
+        </div>
+      </section>
+
+      <!-- ===== Journal list ===== -->
+      <section id="view-journal" class="view" hidden>
+        <div class="view-head">
+          <h2>Journal</h2>
+          <span id="note-stats" class="stats"></span>
+        </div>
+        <div class="search">
+          <span class="search-icon" data-icon="search"></span>
+          <input id="note-search" type="search" placeholder="Search notes" autocomplete="off">
+        </div>
+        <div id="note-cats" class="cat-bar" role="tablist" aria-label="Filter notes by category" hidden></div>
+        <div class="scroller">
+          <div id="note-groups"></div>
+          <div id="note-empty" class="empty" hidden>
+            <span data-icon="journal"></span>
+            <p id="note-empty-text"></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== Journal editor ===== -->
+      <section id="note-editor" class="view editor" hidden>
+        <div class="editor-bar">
+          <button type="button" id="note-back" class="link back"><span data-icon="chevronLeft"></span>Journal</button>
+          <span class="spacer"></span>
+          <button type="button" id="note-cat" class="cat-btn" title="Add a category"></button>
+          <button type="button" id="note-pin" class="icon-btn" data-icon="pin" title="Pin note" aria-label="Pin note"></button>
+          <button type="button" id="note-delete" class="icon-btn" data-icon="trash" title="Delete note" aria-label="Delete note"></button>
+        </div>
+        <input id="note-title" class="note-title-input" maxlength="120" autocomplete="off" aria-label="Note title">
+        <div id="note-meta" class="note-meta-line"></div>
+        <textarea id="note-body" class="note-body" placeholder="Start writing…" aria-label="Note text"></textarea>
+
+        <!-- Category picker (lives here because it only opens from the editor) -->
+        <form id="note-cat-form" class="sheet" hidden autocomplete="off">
+          <h2>Note category</h2>
+          <div id="note-cat-options" class="quick cat-options"></div>
+          <label class="field">
+            <span>Or make a new one</span>
+            <input id="note-cat-new" maxlength="24" placeholder="e.g. Travel">
+          </label>
+          <div class="actions">
+            <button type="button" id="note-cat-none" class="btn danger">Remove category</button>
+            <span class="spacer"></span>
+            <button type="button" id="note-cat-cancel" class="btn ghost">Cancel</button>
+            <button type="submit" class="btn primary">Save</button>
+          </div>
+        </form>
+      </section>
+
+      <!-- ===== Journal lock ===== -->
+      <section id="journal-lock" class="view lock-view" hidden>
+        <form id="lock-form" class="lock-box" autocomplete="off">
+          <span class="lock-icon" data-icon="lock"></span>
+          <h2>Journal is locked</h2>
+          <p class="card-sub">Enter your PIN to read and write notes.</p>
+          <input id="lock-pin" class="input pin-input" type="password" inputmode="numeric" maxlength="8" placeholder="PIN" aria-label="PIN">
+          <p id="lock-error" class="hint warn" hidden></p>
+          <button type="submit" class="btn primary full">Unlock</button>
+          <button type="button" id="lock-forgot" class="link">Forgot PIN?</button>
+        </form>
+      </section>
+
+      <!-- ===== Stats ===== -->
+      <section id="view-stats" class="view" hidden>
+        <div class="view-head">
+          <h2>Stats</h2>
+          <span class="stats"></span>
+          <div class="range-toggle" id="stats-range">
+            <button type="button" class="chip selected" data-range="week">7 days</button>
+            <button type="button" class="chip" data-range="month">This month</button>
+          </div>
+        </div>
+        <div id="stats-body" class="scroller"></div>
+      </section>
+    </main>
+
+    <button id="fab" class="fab" data-icon="plus" title="Add (Ctrl+N)" aria-label="Add"></button>
+
+    <nav class="bottom-nav" id="bottom-nav">
+      <button class="nav-btn active" data-view="tasks"><span class="nav-icon" data-icon="tasks"></span>Tasks</button>
+      <button class="nav-btn" data-view="habits"><span class="nav-icon" data-icon="habits"></span>Habits</button>
+      <button class="nav-btn" data-view="deen"><span class="nav-icon" data-icon="deen"></span>Deen</button>
+      <button class="nav-btn" data-view="journal"><span class="nav-icon" data-icon="journal"></span>Journal</button>
+      <button class="nav-btn" data-view="stats"><span class="nav-icon" data-icon="stats"></span>Stats</button>
+    </nav>
+
+    <div id="toast" class="toast" hidden>
+      <span id="toast-text"></span>
+      <button id="toast-undo" type="button">Undo</button>
+    </div>
+
+    <div id="backdrop" class="backdrop" hidden></div>
+
+    <!-- ===== Task form ===== -->
+    <form id="task-form" class="sheet" hidden autocomplete="off">
+      <h2 id="task-form-title">New task</h2>
+
+      <label class="field">
+        <span>Task</span>
+        <input id="t-title" required maxlength="200" placeholder="What needs doing?">
+      </label>
+
+      <div class="row">
+        <label class="field"><span>Date</span><input id="t-date" type="date"></label>
+        <label class="field"><span>Time</span><input id="t-time" type="time"></label>
+      </div>
+      <div class="quick">
+        <button type="button" class="chip" data-date="today">Today</button>
+        <button type="button" class="chip" data-date="tomorrow">Tomorrow</button>
+        <button type="button" class="chip" data-date="">No date</button>
+      </div>
+
+      <div class="field">
+        <span>Importance</span>
+        <div class="seg" role="radiogroup" aria-label="Importance">
+          <label class="seg-opt imp-low"><input type="radio" name="importance" value="low"><span>Low</span></label>
+          <label class="seg-opt imp-medium"><input type="radio" name="importance" value="medium" checked><span>Medium</span></label>
+          <label class="seg-opt imp-high"><input type="radio" name="importance" value="high"><span>High</span></label>
+        </div>
+      </div>
+
+      <label class="field">
+        <span>Category</span>
+        <input id="t-cat" maxlength="30" placeholder="Pick one or type a new one">
+      </label>
+      <div id="t-cat-chips" class="quick"></div>
+
+      <div class="row">
+        <label class="field">
+          <span>Reminder</span>
+          <select id="t-remind">
+            <option value="-1">No reminder</option>
+            <option value="0">At due time</option>
+            <option value="5">5 minutes before</option>
+            <option value="10">10 minutes before</option>
+            <option value="15">15 minutes before</option>
+            <option value="30">30 minutes before</option>
+            <option value="60">1 hour before</option>
+            <option value="1440">1 day before</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Repeat</span>
+          <select id="t-repeat">
+            <option value="">Doesn't repeat</option>
+            <option value="daily">Every day</option>
+            <option value="weekdays">Weekdays</option>
+            <option value="weekly">Every week</option>
+            <option value="monthly">Every month</option>
+            <option value="custom">Custom days</option>
+          </select>
+        </label>
+      </div>
+      <div id="t-repeat-days" class="quick weekday-chips" hidden></div>
+      <p id="t-remind-hint" class="hint" hidden></p>
+
+      <div class="actions">
+        <button type="button" id="t-delete" class="btn danger" hidden>Delete</button>
+        <span class="spacer"></span>
+        <button type="button" id="t-cancel" class="btn ghost">Cancel</button>
+        <button type="submit" id="t-submit" class="btn primary">Add task</button>
+      </div>
+    </form>
+
+    <!-- ===== Habit form ===== -->
+    <form id="habit-form" class="sheet" hidden autocomplete="off">
+      <h2 id="habit-form-title">New habit</h2>
+
+      <div class="row habit-name-row">
+        <label class="field"><span>Icon</span><input id="h-emoji" class="emoji-input" maxlength="8" placeholder="✨"></label>
+        <label class="field"><span>Habit</span><input id="h-name" required maxlength="40" placeholder="e.g. Read, Drink water, Quran"></label>
+      </div>
+      <div class="emoji-picker">
+        <div id="h-emoji-tabs" class="emoji-tabs"></div>
+        <div id="h-emoji-grid" class="emoji-grid"></div>
+        <p class="hint">Or type any emoji in the Icon box. Press Win + . to open the Windows emoji panel.</p>
+      </div>
+
+      <div class="field">
+        <span>Track it as</span>
+        <div class="seg plain two" role="radiogroup" aria-label="Habit type">
+          <label class="seg-opt"><input type="radio" name="htype" value="check" checked><span>Tick it off</span></label>
+          <label class="seg-opt"><input type="radio" name="htype" value="count"><span>Number with a goal</span></label>
+        </div>
+      </div>
+
+      <div id="h-count-fields" class="row" hidden>
+        <label class="field"><span>Daily goal</span><input id="h-goal" type="number" min="1" max="100000" step="any" value="20"></label>
+        <label class="field"><span>Unit</span><input id="h-unit" maxlength="16" placeholder="pages"></label>
+      </div>
+
+      <div class="field">
+        <span>Color</span>
+        <div id="h-colors" class="colors"></div>
+      </div>
+
+      <div class="actions">
+        <button type="button" id="h-delete" class="btn danger" hidden>Delete</button>
+        <span class="spacer"></span>
+        <button type="button" id="h-cancel" class="btn ghost">Cancel</button>
+        <button type="submit" id="h-submit" class="btn primary">Add habit</button>
+      </div>
+    </form>
+
+    <!-- ===== Habit day value ===== -->
+    <form id="habit-day-form" class="sheet" hidden autocomplete="off">
+      <h2 id="hd-title"></h2>
+      <div class="hd-row">
+        <input id="hd-value" type="number" min="0" step="any" class="input big" aria-label="Amount">
+        <span id="hd-goal" class="hd-goal"></span>
+      </div>
+      <div class="actions">
+        <button type="button" id="hd-clear" class="btn danger">Clear</button>
+        <span class="spacer"></span>
+        <button type="button" id="hd-cancel" class="btn ghost">Cancel</button>
+        <button type="submit" class="btn primary">Save</button>
+      </div>
+    </form>
+
+    <!-- ===== Quran progress ===== -->
+    <form id="quran-form" class="sheet" hidden autocomplete="off">
+      <h2>Quran progress</h2>
+      <div class="row">
+        <label class="field"><span>Pages read (0–604)</span><input id="q-page" type="number" min="0" max="604" step="1"></label>
+        <label class="field"><span>Khatams completed</span><input id="q-khatams" type="number" min="0" step="1"></label>
+      </div>
+      <label class="field"><span>Finish this khatam by (optional)</span><input id="q-goal" type="date"></label>
+      <p class="hint">Based on the standard 604-page mushaf.</p>
+      <div class="actions">
+        <span class="spacer"></span>
+        <button type="button" id="q-cancel" class="btn ghost">Cancel</button>
+        <button type="submit" class="btn primary">Save</button>
+      </div>
+    </form>
+
+    <!-- ===== Settings ===== -->
+    <div id="settings" class="sheet settings" hidden>
+      <div class="sheet-head">
+        <h2>Settings</h2>
+        <button type="button" id="settings-close" class="icon-btn" data-icon="close" aria-label="Close settings"></button>
+      </div>
+
+      <section class="set-section" id="set-appearance">
+        <h3>Appearance</h3>
+        <div class="seg plain" role="radiogroup" aria-label="Theme">
+          <label class="seg-opt"><input type="radio" name="theme" value="light"><span>Light</span></label>
+          <label class="seg-opt"><input type="radio" name="theme" value="dark"><span>Dark</span></label>
+          <label class="seg-opt"><input type="radio" name="theme" value="system"><span>System</span></label>
+        </div>
+        <label class="set-row"><span>Show prayer times card</span><input type="checkbox" class="switch" data-setting="prayer.showCard"></label>
+        <label class="set-row"><span>Show Deen tab</span><input type="checkbox" class="switch" data-setting="tabs.deen"></label>
+        <label class="set-row"><span>Show Stats tab</span><input type="checkbox" class="switch" data-setting="tabs.stats"></label>
+      </section>
+
+      <section class="set-section" id="set-prayer">
+        <h3>Prayer times</h3>
+        <div class="set-card">
+          <div class="loc-current">
+            <span class="inline-icon" data-icon="location"></span>
+            <div>
+              <div id="s-loc-name" class="loc-name"></div>
+              <div id="s-loc-sub" class="hint"></div>
+            </div>
+          </div>
+          <form id="loc-form" class="loc-search" autocomplete="off">
+            <input id="loc-query" class="input" placeholder="Search your city, e.g. London">
+            <button class="btn ghost" type="submit">Search</button>
+          </form>
+          <p id="loc-status" class="hint" hidden></p>
+          <ul id="loc-results" class="loc-results"></ul>
+        </div>
+        <label class="set-field"><span>Calculation method</span><select id="s-method" class="input" data-setting="prayer.method"></select></label>
+        <label class="set-field">
+          <span>Asr time</span>
+          <select class="input" data-setting="prayer.madhab">
+            <option value="shafi">Standard (Shafi'i, Maliki, Hanbali)</option>
+            <option value="hanafi">Hanafi</option>
+          </select>
+        </label>
+        <label class="set-row"><span>Show sunrise</span><input type="checkbox" class="switch" data-setting="prayer.showSunrise"></label>
+        <label class="set-field">
+          <span>Fill in a habit from the prayers you mark</span>
+          <select id="s-prayer-habit" class="input" data-setting="prayer.linkedHabit"></select>
+        </label>
+        <p class="hint">Tap a prayer in the prayer card or the Deen tab to mark it prayed. A tick-off habit gets ticked when all 5 are prayed; a number habit gets the count.</p>
+      </section>
+
+      <section class="set-section" id="set-notifications">
+        <h3>Notifications</h3>
+        <label class="set-row"><span>Notifications</span><input type="checkbox" class="switch" data-setting="notifications.enabled"></label>
+        <label class="set-row"><span>Play sound</span><input type="checkbox" class="switch" data-setting="notifications.sound"></label>
+
+        <h4>Tasks</h4>
+        <label class="set-field">
+          <span>Default reminder for new tasks</span>
+          <select class="input" data-setting="notifications.taskDefault" data-type="number">
+            <option value="-1">No reminder</option>
+            <option value="0">At due time</option>
+            <option value="5">5 minutes before</option>
+            <option value="10">10 minutes before</option>
+            <option value="15">15 minutes before</option>
+            <option value="30">30 minutes before</option>
+            <option value="60">1 hour before</option>
+            <option value="1440">1 day before</option>
+          </select>
+        </label>
+        <label class="set-row"><span>Remind tasks with no time at</span><input type="time" class="input time" data-setting="notifications.dateOnlyTime"></label>
+        <div class="set-row">
+          <span>Morning summary</span>
+          <span class="row-controls">
+            <input type="time" class="input time" data-setting="notifications.summaryTime" aria-label="Morning summary time">
+            <input type="checkbox" class="switch" data-setting="notifications.summary" aria-label="Morning summary">
+          </span>
+        </div>
+
+        <h4>Habits</h4>
+        <div class="set-row">
+          <span>Evening check-in if habits are left</span>
+          <span class="row-controls">
+            <input type="time" class="input time" data-setting="notifications.habitTime" aria-label="Habit check-in time">
+            <input type="checkbox" class="switch" data-setting="notifications.habitCheckin" aria-label="Habit check-in">
+          </span>
+        </div>
+
+        <h4>Prayers</h4>
+        <div class="quick">
+          <label class="chip-toggle"><input type="checkbox" data-setting="notifications.prayers.fajr"><span>Fajr</span></label>
+          <label class="chip-toggle"><input type="checkbox" data-setting="notifications.prayers.dhuhr"><span>Dhuhr</span></label>
+          <label class="chip-toggle"><input type="checkbox" data-setting="notifications.prayers.asr"><span>Asr</span></label>
+          <label class="chip-toggle"><input type="checkbox" data-setting="notifications.prayers.maghrib"><span>Maghrib</span></label>
+          <label class="chip-toggle"><input type="checkbox" data-setting="notifications.prayers.isha"><span>Isha</span></label>
+        </div>
+        <label class="set-field">
+          <span>Notify me</span>
+          <select class="input" data-setting="notifications.prayerBefore" data-type="number">
+            <option value="0">At prayer time</option>
+            <option value="5">5 minutes before</option>
+            <option value="10">10 minutes before</option>
+            <option value="15">15 minutes before</option>
+            <option value="30">30 minutes before</option>
+          </select>
+        </label>
+
+        <button type="button" id="s-test-notify" class="btn ghost full">Send a test notification</button>
+      </section>
+
+      <section class="set-section" id="set-journal">
+        <h3>Journal lock</h3>
+        <label class="set-row"><span>Lock the journal with a PIN</span><input type="checkbox" class="switch" id="s-lock"></label>
+        <div id="s-lock-card" class="set-card" hidden>
+          <label class="set-field" id="s-lock-current-row"><span>Current PIN</span><input id="s-lock-current" class="input" type="password" inputmode="numeric" maxlength="8" autocomplete="off"></label>
+          <label class="set-field" id="s-lock-new-row"><span>New PIN (4–8 digits)</span><input id="s-lock-new" class="input" type="password" inputmode="numeric" maxlength="8" autocomplete="off"></label>
+          <label class="set-field" id="s-lock-confirm-row"><span>Type the new PIN again</span><input id="s-lock-confirm" class="input" type="password" inputmode="numeric" maxlength="8" autocomplete="off"></label>
+          <p id="s-lock-msg" class="hint warn" hidden></p>
+          <div class="actions">
+            <span class="spacer"></span>
+            <button type="button" id="s-lock-cancel" class="btn ghost">Cancel</button>
+            <button type="button" id="s-lock-save" class="btn primary">Save PIN</button>
+          </div>
+        </div>
+        <button type="button" id="s-lock-change" class="btn ghost full" hidden>Change PIN</button>
+        <p class="hint">Hides the journal from anyone else using this computer. It locks again when you leave the Journal tab or hide the widget. This is a privacy screen, not encryption.</p>
+      </section>
+
+      <section class="set-section" id="set-backup">
+        <h3>Backup</h3>
+        <div class="set-row"><span>Save everything to a file</span><button type="button" id="s-backup" class="btn ghost small">Back up now</button></div>
+        <div class="set-row"><span>Load a backup file</span><button type="button" id="s-restore" class="btn ghost small">Restore…</button></div>
+        <div id="s-restore-confirm" class="set-card" hidden>
+          <p id="s-restore-text" class="restore-text"></p>
+          <div class="actions">
+            <span class="spacer"></span>
+            <button type="button" id="s-restore-cancel" class="btn ghost">Cancel</button>
+            <button type="button" id="s-restore-apply" class="btn danger-solid">Replace my data</button>
+          </div>
+        </div>
+        <label class="set-row"><span>Automatic daily backup</span><input type="checkbox" class="switch" data-setting="backup.auto"></label>
+        <p id="s-backup-status" class="hint"></p>
+        <button type="button" id="s-backup-folder" class="btn ghost full">Open backups folder</button>
+      </section>
+
+      <section class="set-section" id="set-canvas">
+        <details class="integration" id="canvas-details">
+          <summary><h3>Canvas assignments</h3><span class="summary-sub">Optional, for students</span></summary>
+          <div class="integration-body">
+            <p class="hint">In Canvas, open <b>Calendar</b>, click <b>Calendar Feed</b> (bottom right) and copy the link. Your upcoming assignments are added to Tasks with their due dates.</p>
+            <label class="set-field"><span>Calendar feed link</span><input id="canvas-url" class="input" type="password" placeholder="https://…/feeds/calendars/user_….ics" autocomplete="off" spellcheck="false"></label>
+            <p class="hint">Keep this link private. Anyone who has it can see your Canvas calendar.</p>
+            <label class="set-row"><span>Check for new assignments every 3 hours</span><input type="checkbox" class="switch" id="canvas-auto"></label>
+            <div class="actions">
+              <button type="button" id="canvas-disconnect" class="btn danger" hidden>Disconnect</button>
+              <span class="spacer"></span>
+              <button type="button" id="canvas-sync" class="btn primary">Import now</button>
+            </div>
+            <p id="canvas-status" class="hint" hidden></p>
+          </div>
+        </details>
+      </section>
+
+      <section class="set-section" id="set-general">
+        <h3>General</h3>
+        <div class="set-row" id="s-hotkey-row">
+          <span>Shortcut to open</span>
+          <span class="row-controls">
+            <button type="button" id="s-hotkey" class="btn ghost small kbd" title="Click, then press the keys you want">Ctrl + Alt + T</button>
+            <button type="button" id="s-hotkey-clear" class="icon-btn sm" data-icon="close" title="Turn off shortcut" aria-label="Turn off shortcut"></button>
+          </span>
+        </div>
+        <p id="s-hotkey-hint" class="hint">Press it anywhere in Windows to show or hide the widget.</p>
+        <label class="set-row" id="s-startup-row"><span>Start with Windows</span><input type="checkbox" class="switch" id="s-startup"></label>
+        <p class="hint">Drag the widget by its header to move it. Right-click the tray icon for more options. Your tasks, habits and notes are saved on this computer.</p>
+      </section>
+    </div>
+  </div>
+
+  <script src="js/core.js"></script>
+  <script src="js/notify.js"></script>
+  <script src="js/prayer.js"></script>
+  <script src="js/tasks.js"></script>
+  <script src="js/habits.js"></script>
+  <script src="js/deen.js"></script>
+  <script src="js/journal.js"></script>
+  <script src="js/stats.js"></script>
+  <script src="js/canvas.js"></script>
+  <script src="js/backup.js"></script>
+  <script src="js/settings.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

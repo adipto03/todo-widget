@@ -1,0 +1,25 @@
+const { contextBridge, ipcRenderer } = require('electron');
+
+contextBridge.exposeInMainWorld('widget', {
+  hide: () => ipcRenderer.send('win:hide'),
+  show: () => ipcRenderer.send('win:show'),
+  togglePin: () => ipcRenderer.invoke('win:toggle-pin'),
+  getSettings: () => ipcRenderer.invoke('app:get-settings'),
+  setOpenAtLogin: (on) => ipcRenderer.invoke('app:set-login', on),
+  setTheme: (theme) => ipcRenderer.send('theme:set', theme),
+  setHotkey: (accelerator) => ipcRenderer.invoke('app:set-hotkey', accelerator),
+  suspendHotkey: (suspended) => ipcRenderer.send('app:suspend-hotkey', suspended),
+  startDrag: () => ipcRenderer.send('drag:start'),
+  endDrag: () => ipcRenderer.send('drag:end'),
+  onSettingsChanged: (cb) => ipcRenderer.on('settings-changed', (_e, s) => cb(s)),
+  notify: (payload) => ipcRenderer.send('notify', payload),
+  onNavigate: (cb) => ipcRenderer.on('navigate', (_e, view) => cb(view)),
+  prayerTimes: (args) => ipcRenderer.invoke('prayer:times', args),
+  searchPlaces: (query) => ipcRenderer.invoke('geo:search', query),
+  saveBackup: (json, suggestedName) => ipcRenderer.invoke('backup:save', json, suggestedName),
+  openBackup: () => ipcRenderer.invoke('backup:open'),
+  autoBackup: (json, day) => ipcRenderer.invoke('backup:auto', json, day),
+  openBackupsFolder: () => ipcRenderer.invoke('backup:open-folder'),
+  fetchCalendar: (url) => ipcRenderer.invoke('canvas:fetch', url),
+  openExternal: (url) => ipcRenderer.send('open-external', url),
+});

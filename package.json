@@ -1,0 +1,71 @@
+{
+  "name": "todo-widget",
+  "version": "1.0.0",
+  "description": "A desktop widget for Windows with tasks, a monthly habit tracker, prayer times, a Deen tab, a journal and stats",
+  "author": "adipto03",
+  "license": "MIT",
+  "main": "main.js",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/adipto03/todo-widget.git"
+  },
+  "scripts": {
+    "start": "electron .",
+    "icon": "node scripts/make-icon.js",
+    "dist": "node scripts/make-icon.js && electron-builder --win nsis --x64"
+  },
+  "devDependencies": {
+    "electron": "^44.3.0",
+    "electron-builder": "^26.15.3"
+  },
+  "dependencies": {
+    "adhan": "^4.4.6",
+    "koffi": "^3.3.0"
+  },
+  "allowScripts": {
+    "electron@44.3.0": true,
+    "koffi@3.3.0": true
+  },
+  "build": {
+    "appId": "com.todo.widget",
+    "productName": "To-Do Widget",
+    "copyright": "Copyright © 2026 adipto03",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "desktop-pin.js",
+      "renderer/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "node_modules/koffi/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "To-Do Widget",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false,
+      "artifactName": "To-Do-Widget-Setup-${version}.exe"
+    }
+  }
+}
