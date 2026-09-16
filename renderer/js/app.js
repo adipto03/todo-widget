@@ -1,14 +1,15 @@
 // Ties the widget together: header, tab switching, window controls, dragging, keyboard shortcuts and the clock.
 const App = (() => {
   const VIEW_KEY = 'todo-widget.view';
-  const ALL_VIEWS = ['tasks', 'habits', 'deen', 'journal', 'goals'];
-  const ADD_LABEL = { tasks: 'Add task', habits: 'Add habit', journal: 'New note', goals: 'Add goal' };
+  const ALL_VIEWS = ['planner', 'tasks', 'habits', 'deen', 'journal', 'goals'];
+  const ADD_LABEL = { planner: 'Add priority', tasks: 'Add task', habits: 'Add habit', journal: 'New note', goals: 'Add goal' };
 
   let view = Storage.getItem(VIEW_KEY) || 'tasks';
   if (view === 'stats') view = 'goals';
   let lastDay = Dates.key();
 
   const enabledViews = () => ALL_VIEWS.filter((v) => {
+    if (v === 'planner') return Settings.data.tabs.planner;
     if (v === 'deen') return Settings.data.tabs.deen;
     if (v === 'goals') return Settings.data.tabs.goals;
     return true;
@@ -26,6 +27,7 @@ const App = (() => {
 
     const locked = name === 'journal' && Journal.isLocked;
     const editing = name === 'journal' && !locked && Journal.isEditing;
+    $('#view-planner').hidden = name !== 'planner';
     $('#view-tasks').hidden = name !== 'tasks';
     $('#view-habits').hidden = name !== 'habits';
     $('#view-deen').hidden = name !== 'deen';
@@ -47,6 +49,8 @@ const App = (() => {
       $('#fab').setAttribute('aria-label', addLabel);
     }
 
+    if (name !== 'planner') Planner.flush();
+    if (name === 'planner') Planner.render();
     if (name === 'habits') Habits.render();
     if (name === 'deen') Deen.render();
     if (name === 'goals') Goals.render();
@@ -54,7 +58,8 @@ const App = (() => {
   }
 
   function add() {
-    if (view === 'tasks') Tasks.openForm();
+    if (view === 'planner') Planner.add();
+    else if (view === 'tasks') Tasks.openForm();
     else if (view === 'habits') Habits.openForm();
     else if (view === 'goals') Goals.openForm();
     else if (view === 'journal' && !Journal.isLocked) Journal.create();
@@ -105,12 +110,14 @@ const App = (() => {
     const today = Dates.key();
     if (today !== lastDay) {
       lastDay = today;
+      Planner.newDay();
       Habits.goToToday();
       Journal.renderList();
     }
     renderHeader();
     Prayer.render();
     if (!Sheet.isOpen) Tasks.render();
+    if (view === 'planner') Planner.tick();
     if (view === 'deen') Deen.render();
     if (view === 'goals' && !Sheet.isOpen) Goals.render();
     Notifier.tick();
@@ -123,6 +130,7 @@ const App = (() => {
   function init() {
     fillIcons();
     Tasks.init();
+    Planner.init();
     Calendars.init();
     Habits.init();
     Deen.init();

@@ -20,10 +20,10 @@ const Backup = (() => {
     try {
       backup = JSON.parse(text);
     } catch {
-      throw new Error("That file isn't a To-Do Widget backup.");
+      throw new Error("That file isn't an A Widget for Life backup.");
     }
     if (!backup || backup.app !== 'todo-widget' || !backup.data || typeof backup.data !== 'object' || Array.isArray(backup.data)) {
-      throw new Error("That file isn't a To-Do Widget backup.");
+      throw new Error("That file isn't an A Widget for Life backup.");
     }
     for (const [key, value] of Object.entries(backup.data)) {
       if (!key.startsWith(PREFIX) || typeof value !== 'string') throw new Error('That backup file looks damaged.');
@@ -51,7 +51,7 @@ const Backup = (() => {
     };
   }
 
-  const exportToFile = () => bridge.saveBackup(serialize(), `todo-widget-backup-${Dates.key()}.json`);
+  const exportToFile = () => bridge.saveBackup(serialize(), `a-widget-for-life-backup-${Dates.key()}.json`);
 
   async function readFromFile() {
     const result = await bridge.openBackup();

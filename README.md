@@ -1,7 +1,8 @@
-# To-Do Widget
+# A Widget for Life
 
 A small desktop widget for Windows that sits on your desktop and keeps your day in one place.
 
+- **Planner**: plan a day hour by hour with your top priorities and a note on what to improve, rate each day as rough, average or good, review the week (Monday to Sunday) with goals that carry over into the next one, and see the whole month coloured by how each day went — click a day to open it
 - **Tasks**: due dates and times, importance, categories, reminders and repeating tasks (daily, weekdays, weekly, monthly or custom days)
 - **Habits**: a monthly grid, with habits you tick off or count towards a daily goal (like 20 pages)
 - **Prayer times**: calculated on your computer for your city, with notifications. Tap a prayer to mark it as prayed.
@@ -15,9 +16,11 @@ Everything is saved on your own computer. There's no account and nothing is uplo
 
 ## Install
 
-1. Go to the [Releases page](https://github.com/adipto03/todo-widget/releases) and download `To-Do-Widget-Setup-x.y.z.exe`.
+1. Go to the [Releases page](https://github.com/adipto03/todo-widget/releases) and download `A-Widget-for-Life-Setup-x.y.z.exe`.
 2. Run it. Windows may show **"Windows protected your PC"** because the app isn't code-signed. Click **More info**, then **Run anyway**.
 3. The widget opens straight away, and you get a desktop icon and a Start menu entry.
+
+If you already have the widget installed under its old name, To-Do Widget, this installs over it and keeps everything you had.
 
 Every new install starts empty. Works on Windows 10 and 11 (64-bit).
 
@@ -28,7 +31,7 @@ From version 1.1.1 the widget **updates itself**: it downloads new versions in t
 - Drag the widget by its header to move it. Resize it from the edges.
 - **Pin to desktop** (pin icon) keeps it behind your other windows, like a desktop gadget.
 - Closing it hides it to the tray (bottom-right, near the clock) so reminders keep working. Right-click the tray icon to quit.
-- The Deen and Goals tabs and the prayer card can be turned off in **Settings → Appearance**. Cards in the Deen tab fold away if you don't use them.
+- The Planner, Deen and Goals tabs and the prayer card can be turned off in **Settings → Appearance**. Cards in the Deen tab fold away if you don't use them.
 - **Settings → Linked calendars** takes a calendar's sharing link (iCal / .ics). The settings explain where to find it for Google, Outlook, iCloud and Canvas.
 - **Settings → Backup** saves everything to a file, and automatic daily backups are on by default. Use a backup to move your data to another computer.
 

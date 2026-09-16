@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:">
-  <title>To-Do Widget</title>
+  <title>A Widget for Life</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -55,6 +55,25 @@
     </section>
 
     <main class="views">
+      <!-- ===== Planner ===== -->
+      <section id="view-planner" class="view" hidden>
+        <div class="view-head">
+          <h2 id="planner-title"></h2>
+          <span id="planner-sub" class="stats"></span>
+          <button type="button" id="planner-today" class="link" hidden>Today</button>
+          <div class="month-nav">
+            <button id="planner-prev" class="icon-btn sm" data-icon="chevronLeft" title="Previous day" aria-label="Previous"></button>
+            <button id="planner-next" class="icon-btn sm" data-icon="chevronRight" title="Next day" aria-label="Next"></button>
+          </div>
+        </div>
+        <nav class="tabs" id="planner-tabs">
+          <button class="tab active" data-mode="day">Day</button>
+          <button class="tab" data-mode="week">Week</button>
+          <button class="tab" data-mode="month">Month</button>
+        </nav>
+        <div id="planner-body" class="scroller"></div>
+      </section>
+
       <!-- ===== Tasks ===== -->
       <section id="view-tasks" class="view">
         <div class="view-head">
@@ -274,6 +293,7 @@
     <button id="fab" class="fab" data-icon="plus" title="Add (Ctrl+N)" aria-label="Add"></button>
 
     <nav class="bottom-nav" id="bottom-nav">
+      <button class="nav-btn" data-view="planner"><span class="nav-icon" data-icon="planner"></span>Plan</button>
       <button class="nav-btn active" data-view="tasks"><span class="nav-icon" data-icon="tasks"></span>Tasks</button>
       <button class="nav-btn" data-view="habits"><span class="nav-icon" data-icon="habits"></span>Habits</button>
       <button class="nav-btn" data-view="deen"><span class="nav-icon" data-icon="deen"></span>Deen</button>
@@ -506,6 +526,7 @@
           <label class="seg-opt"><input type="radio" name="theme" value="system"><span>System</span></label>
         </div>
         <label class="set-row"><span>Show prayer times card</span><input type="checkbox" class="switch" data-setting="prayer.showCard"></label>
+        <label class="set-row"><span>Show Planner tab</span><input type="checkbox" class="switch" data-setting="tabs.planner"></label>
         <label class="set-row"><span>Show Deen tab</span><input type="checkbox" class="switch" data-setting="tabs.deen"></label>
         <label class="set-row"><span>Show Goals tab</span><input type="checkbox" class="switch" data-setting="tabs.goals"></label>
       </section>
@@ -709,6 +730,7 @@
   <script src="js/notify.js"></script>
   <script src="js/prayer.js"></script>
   <script src="js/tasks.js"></script>
+  <script src="js/planner.js"></script>
   <script src="js/habits.js"></script>
   <script src="js/reflections-data.js"></script>
   <script src="js/quran-arabic.js"></script>

@@ -140,6 +140,7 @@ const Icons = {
   layers: '<svg viewBox="0 0 24 24"><path d="M12 3.5l8.5 4.5-8.5 4.5L3.5 8z"/><path d="M3.5 12.5l8.5 4.5 8.5-4.5"/></svg>',
   bookmark:'<svg viewBox="0 0 24 24"><path d="M6.5 3.5h11v17l-5.5-4-5.5 4z"/></svg>',
   calendar: '<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
+  planner: '<svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="16" rx="3"/><path d="M8 3v3M16 3v3M7.5 10.5h4M7.5 14h6M7.5 17.5h3"/></svg>',
   target: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>',
 };
 
@@ -216,7 +217,7 @@ const DEFAULT_SETTINGS = {
     showCard: true,
     linkedHabit: '',
   },
-  tabs: { deen: true, goals: true },
+  tabs: { planner: true, deen: true, goals: true },
   journalLock: { enabled: false, salt: '', hash: '' },
   backup: { auto: true },
 };

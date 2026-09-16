@@ -223,12 +223,14 @@ function ensureStartMenuShortcut() {
   try {
     const icoPath = path.join(app.getPath('userData'), 'icon.ico');
     fs.writeFileSync(icoPath, pngToIco(makeIcon(64).toPNG(), 64));
-    const lnk = path.join(app.getPath('appData'), 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'To-Do Widget.lnk');
+    const programs = path.join(app.getPath('appData'), 'Microsoft', 'Windows', 'Start Menu', 'Programs');
+    fs.rmSync(path.join(programs, 'To-Do Widget.lnk'), { force: true }); // the name before 1.2.0
+    const lnk = path.join(programs, 'A Widget for Life.lnk');
     shell.writeShortcutLink(lnk, 'create', {
       target: process.execPath,
       args: `"${app.getAppPath()}"`,
       cwd: app.getAppPath(),
-      description: 'To-Do Widget',
+      description: 'A Widget for Life',
       icon: icoPath,
       iconIndex: 0,
       appUserModelId: APP_ID,
@@ -273,7 +275,7 @@ function setupUpdates() {
     if (!Notification.isSupported()) return;
     const n = new Notification({
       title: 'Update ready',
-      body: `To-Do Widget ${info.version} installs when the widget restarts. Click to restart now.`,
+      body: `A Widget for Life ${info.version} installs when the widget restarts. Click to restart now.`,
       icon: makeIcon(64),
     });
     liveNotifications.add(n);
@@ -406,7 +408,7 @@ function createWindow() {
     skipTaskbar: true,
     show: false,
     icon: appIcon,
-    title: 'To-Do Widget',
+    title: 'A Widget for Life',
     backgroundColor: THEME_BG[state.theme] || THEME_BG.light,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -448,7 +450,7 @@ function createWindow() {
   });
 
   tray = new Tray(appIcon);
-  tray.setToolTip('To-Do Widget');
+  tray.setToolTip('A Widget for Life');
   tray.on('click', showWindow);
   buildTrayMenu();
 }
@@ -459,7 +461,7 @@ const liveNotifications = new Set(); // keep references so click handlers surviv
 ipcMain.on('notify', (_e, payload = {}) => {
   if (!Notification.isSupported()) return;
   const n = new Notification({
-    title: String(payload.title || 'To-Do Widget'),
+    title: String(payload.title || 'A Widget for Life'),
     body: String(payload.body || ''),
     silent: !!payload.silent,
     icon: makeIcon(64),
@@ -525,11 +527,11 @@ const MAX_BACKUP_BYTES = 50 * 1024 * 1024;
 
 ipcMain.handle('backup:save', async (_e, json, suggestedName) => {
   if (typeof json !== 'string') return { ok: false, error: 'Nothing to save' };
-  const name = /^[\w.-]+\.json$/.test(String(suggestedName)) ? suggestedName : 'todo-widget-backup.json';
+  const name = /^[\w.-]+\.json$/.test(String(suggestedName)) ? suggestedName : 'a-widget-for-life-backup.json';
   const { canceled, filePath } = await dialog.showSaveDialog(win, {
     title: 'Save a backup',
     defaultPath: path.join(app.getPath('documents'), name),
-    filters: [{ name: 'To-Do Widget backup', extensions: ['json'] }],
+    filters: [{ name: 'A Widget for Life backup', extensions: ['json'] }],
   });
   if (canceled || !filePath) return { canceled: true };
   try {
@@ -544,7 +546,7 @@ ipcMain.handle('backup:open', async () => {
   const { canceled, filePaths } = await dialog.showOpenDialog(win, {
     title: 'Restore from a backup',
     defaultPath: app.getPath('documents'),
-    filters: [{ name: 'To-Do Widget backup', extensions: ['json'] }],
+    filters: [{ name: 'A Widget for Life backup', extensions: ['json'] }],
     properties: ['openFile'],
   });
   if (canceled || !filePaths?.[0]) return { canceled: true };
