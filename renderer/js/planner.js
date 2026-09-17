@@ -542,25 +542,83 @@ const Planner = (() => {
 
   // The summary as sections of lines; lines starting with two spaces sit under the line above.
   // Both the card and the copied text are made from this, so they always say the same thing.
+  // What a summary includes. Any part can be left out; the choice is remembered, and the summary
+  // card shows exactly what gets copied.
+  const SUMMARY_PARTS = [
+    ['verdict', 'W or L'],
+    ['priorities', 'Priorities'],
+    ['steps', 'Goal steps'],
+    ['tasks', 'Tasks done'],
+    ['plan', 'Day plan'],
+    ['habits', 'Habits'],
+    ['extras', 'Prayers, Quran, journal'],
+    ['missed', 'Not done'],
+    ['improve', 'Do better'],
+    ['weekGoals', 'Weekly goals'],
+    ['monthGoals', 'Monthly goals'],
+  ];
+  const PARTS_KEY = 'todo-widget.summaryParts';
+  const hiddenParts = new Set(Store.get(PARTS_KEY, { hidden: [] }).hidden || []);
+  const shows = (part) => !hiddenParts.has(part);
+  let choosingParts = false;
+
+  function togglePart(part) {
+    if (hiddenParts.has(part)) hiddenParts.delete(part);
+    else hiddenParts.add(part);
+    Store.set(PARTS_KEY, { hidden: [...hiddenParts] });
+    render();
+  }
+
+  // "Choose what's included", which opens a row of parts to switch on and off. The same choice is
+  // used wherever a summary is copied, so it sits by each Copy summary button.
+  function partChooser(hint) {
+    const hidden = SUMMARY_PARTS.filter(([part]) => !shows(part)).length;
+    return [
+      el('button', {
+        type: 'button',
+        class: `sum-choose${choosingParts ? ' open' : ''}`,
+        'aria-expanded': choosingParts ? 'true' : 'false',
+        onclick: () => {
+          choosingParts = !choosingParts;
+          render();
+        },
+      },
+        el('span', { class: 'core-chevron', html: Icons.chevronRight }),
+        !choosingParts && hidden ? `Choose what’s included in the summary · ${hidden} left out` : 'Choose what’s included in the summary'),
+      choosingParts
+        ? el('div', { class: 'sum-parts' },
+          SUMMARY_PARTS.map(([part, label]) => el('button', {
+            type: 'button',
+            class: `chip${shows(part) ? ' selected' : ''}`,
+            'aria-pressed': shows(part) ? 'true' : 'false',
+            title: shows(part) ? `Leave out ${label.toLowerCase()}` : `Include ${label.toLowerCase()}`,
+            text: label,
+            onclick: () => togglePart(part),
+          })),
+          el('p', { class: 'goal-hint', text: hint }))
+        : null,
+    ];
+  }
+
   function summarySections(s) {
     const did = [];
-    if (s.priorities.length) {
+    if (shows('priorities') && s.priorities.length) {
       did.push(`Top priorities (${count(s.priorities)} done)`);
       for (const p of s.priorities) did.push(`  ${mark(p.done)} ${p.text.trim()}`);
     }
-    if (s.steps.length) {
+    if (shows('steps') && s.steps.length) {
       did.push(`Goal steps (${count(s.steps.map((e) => e.step))} done)`);
       for (const { step, goal } of s.steps) did.push(`  ${mark(step.done)} ${step.text.trim()}${goal.text.trim() ? ` (towards “${goal.text.trim()}”)` : ''}`);
     }
-    if (s.done.length) {
+    if (shows('tasks') && s.done.length) {
       did.push(`Tasks completed (${s.done.length})`);
       for (const t of s.done) did.push(`  ✓ ${t.title}`);
     }
-    if (s.plan.length) {
+    if (shows('plan') && s.plan.length) {
       did.push('Day plan');
       for (const p of s.plan) did.push(`  ${hourLabel(p.hour)}: ${p.text}`);
     }
-    if (s.habits.length) {
+    if (shows('habits') && s.habits.length) {
       const met = s.habits.filter((h) => h.met).length;
       did.push(`Habits (${met}/${s.habits.length}): ${s.habits.map((h) => `${h.name} ${mark(h.met)}`).join(', ')}`);
     }
@@ -569,24 +627,24 @@ const Planner = (() => {
     if (s.quran) extras.push(`Quran ${plural(Math.round(s.quran * 10) / 10, 'page')}`);
     if (s.dhikr) extras.push(`Dhikr ${s.dhikr}`);
     if (s.journal) extras.push(`Journal ${plural(s.journal, 'entry', 'entries')}`);
-    if (extras.length) did.push(extras.join(' · '));
-    if (!did.length) did.push('Nothing recorded.');
+    if (shows('extras') && extras.length) did.push(extras.join(' · '));
+    const didParts = ['priorities', 'steps', 'tasks', 'plan', 'habits', 'extras'];
+    if (!did.length && didParts.some(shows)) did.push('Nothing recorded.');
 
     const goals = (label, answer, items, none) => [
       `${label}: ${ALIGN_LABEL[answer] || 'not answered'}`,
       ...(items.length ? items.map((g) => `  ${goalMark(g.done)} ${g.text.trim()}${g.goal ? ` (core goal: ${g.goal})` : ''}`) : [`  (${none})`]),
     ];
 
-    const sections = [{ title: 'What I did', lines: did }];
-    if (s.missed.length) sections.push({ title: 'Not done', lines: s.missed.map((t) => `✗ ${t.title}`) });
-    sections.push({ title: 'What I could do better', lines: [s.improve || 'Nothing written.'] });
-    sections.push({
-      title: 'Goals',
-      lines: [
-        ...goals('In line with this week’s goals', s.aligned.week, s.weekGoals, 'no weekly goals set'),
-        ...goals('In line with this month’s goals', s.aligned.month, s.monthGoals, 'no monthly goals set'),
-      ],
-    });
+    const sections = [];
+    if (did.length) sections.push({ title: 'What I did', lines: did });
+    if (shows('missed') && s.missed.length) sections.push({ title: 'Not done', lines: s.missed.map((t) => `✗ ${t.title}`) });
+    if (shows('improve')) sections.push({ title: 'What I could do better', lines: [s.improve || 'Nothing written.'] });
+    const goalLines = [
+      ...(shows('weekGoals') ? goals('In line with this week’s goals', s.aligned.week, s.weekGoals, 'no weekly goals set') : []),
+      ...(shows('monthGoals') ? goals('In line with this month’s goals', s.aligned.month, s.monthGoals, 'no monthly goals set') : []),
+    ];
+    if (goalLines.length) sections.push({ title: 'Goals', lines: goalLines });
     return sections;
   }
 
@@ -595,7 +653,7 @@ const Planner = (() => {
   function summaryText(key) {
     const s = summarize(key);
     const date = Dates.parse(key).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-    const out = [`${date}: ${verdictText(s.rating)}`];
+    const out = [shows('verdict') ? `${date}: ${verdictText(s.rating)}` : date];
     for (const section of summarySections(s)) out.push('', section.title.toUpperCase(), ...section.lines);
     return out.join('\n');
   }
@@ -622,7 +680,7 @@ const Planner = (() => {
     const days = monthDays(key).filter((k) => k <= today && hasAnything(summarize(k)));
     const goals = named(monthOf(key).goals);
     const head = [`${Dates.parse(key).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}`];
-    if (goals.length) head.push('', 'GOALS FOR THE MONTH', ...goals.map((g) => `${goalMark(g.done)} ${g.text.trim()}`));
+    if (shows('monthGoals') && goals.length) head.push('', 'GOALS FOR THE MONTH', ...goals.map((g) => `${goalMark(g.done)} ${g.text.trim()}`));
     if (!days.length) {
       Toast.show('Nothing recorded this month yet');
       return;
@@ -633,19 +691,25 @@ const Planner = (() => {
   function summaryCard(key) {
     const s = summarize(key);
     const tag = (text, rate) => el('span', { class: `sum-tag rate-${rate || 'none'}`, text });
+    const tags = [
+      shows('verdict') ? tag(verdictText(s.rating), s.rating) : null,
+      shows('weekGoals') ? tag(`Weekly goals: ${ALIGN_LABEL[s.aligned.week] || '–'}`, ALIGN_RATE[s.aligned.week]) : null,
+      shows('monthGoals') ? tag(`Monthly goals: ${ALIGN_LABEL[s.aligned.month] || '–'}`, ALIGN_RATE[s.aligned.month]) : null,
+    ].filter(Boolean);
+    const sections = summarySections(s);
     return el('section', { class: 'card plan-card day-summary' },
       el('div', { class: 'card-head' },
         el('h3', { text: dayTitle(key) }),
         el('span', { class: 'card-actions' },
           el('button', { type: 'button', class: 'link', text: 'Copy summary', onclick: () => copyDay(key) }),
           el('button', { type: 'button', class: 'link', text: 'Open day', onclick: () => openDay(key) }))),
-      el('div', { class: 'sum-tags' },
-        tag(verdictText(s.rating), s.rating),
-        tag(`Weekly goals: ${ALIGN_LABEL[s.aligned.week] || '–'}`, ALIGN_RATE[s.aligned.week]),
-        tag(`Monthly goals: ${ALIGN_LABEL[s.aligned.month] || '–'}`, ALIGN_RATE[s.aligned.month])),
+      partChooser('The summary below is exactly what gets copied, here and from the Day view.'),
+      tags.length ? el('div', { class: 'sum-tags' }, tags) : null,
       key > Dates.key() && !hasAnything(s)
         ? el('p', { class: 'stats-empty', text: 'This day hasn’t happened yet.' })
-        : summarySections(s).map((section) => el('div', { class: 'sum-section' },
+        : !sections.length
+          ? el('p', { class: 'stats-empty', text: 'Everything is left out. Choose at least one part to include.' })
+          : sections.map((section) => el('div', { class: 'sum-section' },
           el('h4', { text: section.title }),
           section.lines.map((line) => el('div', { class: `sum-line${line.startsWith('  ') ? ' sub' : ''}`, text: line.trim() })))));
   }
@@ -750,6 +814,7 @@ const Planner = (() => {
         el('span', { class: 'card-actions' },
           day.rating ? el('span', { class: `card-sub rate-text rate-${day.rating}`, text: RATING_LABEL[day.rating] }) : null,
           el('button', { type: 'button', class: 'link', text: 'Copy summary', onclick: () => { flush(); copyDay(dayKey); } }))),
+      partChooser('Highlighted parts go into the copied summary. To see the whole summary first, click this day in the Month view.'),
       ratingRow(day),
       el('label', { class: 'plan-label', text: 'How could I improve?' }),
       growingArea(day.improve, 'One thing to do better next time…', (v) => { ensureDay(dayKey).improve = v; }),

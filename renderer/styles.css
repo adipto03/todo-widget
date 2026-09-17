@@ -1615,3 +1615,22 @@ p.card-sub { margin-top: 8px; }
 }
 .core-links button:hover .plan-item-label { color: var(--accent); }
 .core-link-icon { flex: none; width: 20px; font-size: 13px; text-align: center; }
+
+/* choosing what a day summary includes */
+.sum-choose {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: -2px 0 6px;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11.5px;
+}
+.sum-choose:hover { color: var(--accent); }
+.sum-choose .core-chevron svg { width: 12px; height: 12px; }
+.sum-choose.open .core-chevron { transform: rotate(90deg); }
+.sum-parts { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.sum-parts .chip { padding: 3px 9px; font-size: 11.5px; }
+.sum-parts .goal-hint { flex-basis: 100%; margin: 2px 0 0; }
