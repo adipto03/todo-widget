@@ -2,7 +2,7 @@
 const App = (() => {
   const VIEW_KEY = 'todo-widget.view';
   const ALL_VIEWS = ['planner', 'tasks', 'habits', 'deen', 'journal', 'goals'];
-  const ADD_LABEL = { planner: 'Add priority', tasks: 'Add task', habits: 'Add habit', journal: 'New note', goals: 'Add goal' };
+  const ADD_LABEL = { planner: 'Add priority', tasks: 'Add task', habits: 'Add habit', journal: 'New note', goals: 'New core goal' };
 
   let view = Storage.getItem(VIEW_KEY) || 'tasks';
   if (view === 'stats') view = 'goals';
@@ -61,7 +61,7 @@ const App = (() => {
     if (view === 'planner') Planner.add();
     else if (view === 'tasks') Tasks.openForm();
     else if (view === 'habits') Habits.openForm();
-    else if (view === 'goals') Goals.openForm();
+    else if (view === 'goals') Goals.newPlan();
     else if (view === 'journal' && !Journal.isLocked) Journal.create();
   }
 
@@ -119,7 +119,7 @@ const App = (() => {
     if (!Sheet.isOpen) Tasks.render();
     if (view === 'planner') Planner.tick();
     if (view === 'deen') Deen.render();
-    if (view === 'goals' && !Sheet.isOpen) Goals.render();
+    if (view === 'goals' && !Sheet.isOpen) Goals.refresh();
     Notifier.tick();
     Backup.autoDaily();
     Calendars.cleanup();

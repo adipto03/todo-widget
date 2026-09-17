@@ -5,8 +5,9 @@ const Goals = (() => {
   const DAY_MS = 86400000;
   const TYPES = ['tasks', 'habit', 'prayers', 'quran', 'dhikr', 'journal'];
 
-  let data = mergeDefaults({ goals: [], celebrated: {} }, Store.get(KEY, {}));
+  let data = mergeDefaults({ goals: [], plans: [], celebrated: {} }, Store.get(KEY, {}));
   if (!Array.isArray(data.goals)) data.goals = [];
+  if (!Array.isArray(data.plans)) data.plans = [];
   let editingId = null;
   const form = $('#goal-form');
   const save = () => Store.set(KEY, data);
@@ -169,13 +170,12 @@ const Goals = (() => {
 
   function emptyCard() {
     return el('section', { class: 'card goal-empty' },
-      el('span', { class: 'goal-empty-icon', html: Icons.target }),
-      el('h3', { text: 'Set your first goal' }),
-      el('p', { class: 'card-sub', text: 'Goals fill in by themselves from your tasks, habits, prayers and Quran reading, and tell you if you’re on pace.' }),
+      el('h3', { text: 'Targets' }),
+      el('p', { class: 'card-sub', text: 'Numbers to hit each week or month. They fill in by themselves from your tasks, habits, prayers and Quran reading, and tell you if you’re on pace.' }),
       el('div', { class: 'quick goal-suggestions' }, suggestions().map((s) => el('button', {
         type: 'button', class: 'chip', text: s.label, onclick: () => openForm(null, s.goal),
       }))),
-      el('button', { type: 'button', class: 'btn primary small', text: 'Make my own', onclick: () => openForm() }));
+      el('button', { type: 'button', class: 'btn ghost small', text: 'Make my own', onclick: () => openForm() }));
   }
 
   // ---------- needs attention ----------
@@ -280,9 +280,461 @@ const Goals = (() => {
       })));
   }
 
+  // ---------- core goals ----------
+  // A big goal, with a date to reach it by if you want one. It splits into a goal for each month,
+  // each month into four weeks (1–7, 8–14, 15–21 and 22 to the end), and each week into tasks.
+  // The tasks are ordinary tasks: they show in Tasks with their due date and tick off in either place.
+  const MAX_MONTHS = 36;
+  let openPlanId = null;
+  let planFocus = null;
+  let planTimer = null;
+  const toggledMonths = new Set(); // months opened or closed by hand, against the default
+
+  function savePlansSoon() {
+    clearTimeout(planTimer);
+    planTimer = setTimeout(flushPlans, 600);
+  }
+
+  function flushPlans() {
+    if (!planTimer) return;
+    clearTimeout(planTimer);
+    planTimer = null;
+    save();
+  }
+
+  const monthOfKey = (key) => `${key.slice(0, 8)}01`;
+  const monthName = (key, opts = {}) => Dates.parse(key).toLocaleDateString(undefined, { month: 'long', ...opts });
+  const weekOfKey = (key) => Math.min(3, Math.floor((Dates.parse(key).getDate() - 1) / 7));
+
+  function addMonths(key, n) {
+    const d = Dates.parse(key);
+    return Dates.key(new Date(d.getFullYear(), d.getMonth() + n, 1));
+  }
+
+  // The first and last day of week 1–4 of a month; week 4 runs to the end of the month.
+  function weekSpan(monthKey, index) {
+    const d = Dates.parse(monthKey);
+    const last = Dates.daysInMonth(d.getFullYear(), d.getMonth());
+    const day = (n) => Dates.key(new Date(d.getFullYear(), d.getMonth(), n));
+    return [day(1 + 7 * index), day(index === 3 ? last : 7 * (index + 1))];
+  }
+
+  const spanText = ([from, to]) => new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' }).formatRange(Dates.parse(from), Dates.parse(to));
+  const findPlan = (id) => data.plans.find((p) => p.id === id);
+  const linkedTasks = (plan) => Tasks.list().filter((t) => t.goalLink?.plan === plan.id);
+
+  function weekTasks(plan, monthKey, index) {
+    return linkedTasks(plan)
+      .filter((t) => t.goalLink.month === monthKey && t.goalLink.week === index)
+      .sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999') || a.createdAt - b.createdAt);
+  }
+
+  function monthRecord(plan, key) {
+    plan.months ??= {};
+    const month = (plan.months[key] ??= { text: '', weeks: ['', '', '', ''] });
+    month.weeks ??= ['', '', '', ''];
+    return month;
+  }
+
+  const monthHasPlan = (plan, key) => {
+    const month = plan.months?.[key];
+    return !!(month?.text?.trim() || (month?.weeks || []).some((w) => w?.trim()) || linkedTasks(plan).some((t) => t.goalLink.month === key));
+  };
+
+  // From the month the goal was set (or the earliest month planned) to the month it's due. With no
+  // date, up to next month, plus any months added by hand.
+  function planMonths(plan) {
+    const current = monthOfKey(Dates.key());
+    const planned = [...new Set([...Object.keys(plan.months || {}), ...linkedTasks(plan).map((t) => t.goalLink.month)])]
+      .filter((k) => monthHasPlan(plan, k)).sort();
+    let start = monthOfKey(Dates.key(new Date(plan.createdAt || Date.now())));
+    if (planned[0] && planned[0] < start) start = planned[0];
+    let end = plan.by ? monthOfKey(plan.by) : addMonths(current > start ? current : start, 1 + (plan.extraMonths || 0));
+    if (planned.length && planned[planned.length - 1] > end) end = planned[planned.length - 1];
+    if (end < start) end = start;
+    const out = [];
+    for (let k = start; k <= end && out.length < MAX_MONTHS; k = addMonths(k, 1)) out.push(k);
+    return out;
+  }
+
+  function dueText(plan) {
+    if (plan.done) return 'Achieved';
+    if (!plan.by) return 'No date set';
+    const days = daysBetween(Dates.key(), plan.by);
+    if (days < 0) return 'Date has passed';
+    if (days === 0) return 'Due today';
+    if (days < 60) return `${plural(days, 'day')} left`;
+    return `${Math.round(days / 30.4)} months left`;
+  }
+
+  function newPlan() {
+    const plan = { id: uid(), title: '', by: '', why: '', done: false, months: {}, createdAt: Date.now() };
+    data.plans.push(plan);
+    save();
+    openPlan(plan.id, { id: plan.id });
+  }
+
+  function openPlan(id, focus = null) {
+    flushPlans();
+    openPlanId = id;
+    planFocus = focus;
+    $('#goals-body').scrollTop = 0;
+    render();
+  }
+
+  function closePlan() {
+    flushPlans();
+    const plan = findPlan(openPlanId);
+    openPlanId = null;
+    // A goal opened and left without anything in it isn't kept.
+    if (plan && !plan.title.trim() && !plan.why?.trim() && !plan.by && !Object.keys(plan.months || {}).some((k) => monthHasPlan(plan, k))) {
+      data.plans = data.plans.filter((p) => p !== plan);
+      save();
+    }
+    $('#goals-body').scrollTop = 0;
+    render();
+  }
+
+  function removePlan(plan) {
+    const index = data.plans.indexOf(plan);
+    // Its tasks still to do go with it; ones already done stay in Tasks as a record.
+    const open = linkedTasks(plan).filter((t) => !t.done);
+    data.plans.splice(index, 1);
+    save();
+    for (const t of open) Tasks.remove(t.id);
+    openPlanId = null;
+    render();
+    Toast.show(`Deleted “${plan.title.trim().slice(0, 30) || 'goal'}”${open.length ? ` and ${plural(open.length, 'task')}` : ''}`, () => {
+      data.plans.splice(Math.min(index, data.plans.length), 0, plan);
+      save();
+      for (const t of open) Tasks.add(t);
+      render();
+    });
+  }
+
+  // One line you type into that saves as you go.
+  function planInput(value, { placeholder, className = 'plan-item-text', id, onInput, onCommit }) {
+    const input = el('input', {
+      class: className,
+      maxlength: 200,
+      placeholder,
+      'data-id': id,
+      oninput: () => {
+        onInput(input.value);
+        savePlansSoon();
+      },
+      onchange: () => {
+        flushPlans();
+        onCommit?.(input.value);
+      },
+    });
+    input.value = value || '';
+    return input;
+  }
+
+  function planCard(plan) {
+    const tasks = linkedTasks(plan);
+    const done = tasks.filter((t) => t.done).length;
+    const today = Dates.key();
+    const monthKey = monthOfKey(today);
+    const week = weekOfKey(today);
+    const month = plan.months?.[monthKey];
+    const leftThisWeek = weekTasks(plan, monthKey, week).filter((t) => !t.done).length;
+    return el('li', {},
+      el('button', { type: 'button', class: `goal core-goal${plan.done ? ' done' : ''}`, title: 'Open this goal', onclick: () => openPlan(plan.id) },
+        el('span', { class: 'goal-top' },
+          el('span', { class: 'goal-icon', text: plan.done ? '🏆' : '🎯' }),
+          el('span', { class: 'goal-title', text: plan.title.trim() || 'Untitled goal' }),
+          el('span', { class: 'goal-value', text: dueText(plan) })),
+        el('span', { class: 'goal-bar' },
+          el('span', { class: 'bar-fill', style: { '--w': `${tasks.length ? Math.round((done / tasks.length) * 100) : 0}%` } })),
+        plan.done ? null : el('span', { class: 'core-line' },
+          el('b', { text: monthName(monthKey) }),
+          el('span', { text: month?.text?.trim() || 'No goal for this month yet' })),
+        plan.done ? null : el('span', { class: 'core-line' },
+          el('b', { text: `Week ${week + 1}` }),
+          el('span', { text: month?.weeks?.[week]?.trim() || 'No goal for this week yet' })),
+        el('span', { class: 'goal-bottom' },
+          el('span', { class: 'goal-status', text: tasks.length ? `${done} of ${plural(tasks.length, 'task')} done` : 'No tasks yet' }),
+          leftThisWeek ? el('span', { class: 'goal-last', text: `${leftThisWeek} left this week` }) : null)));
+  }
+
+  function coreCards() {
+    const active = data.plans.filter((p) => !p.done);
+    const achieved = data.plans.filter((p) => p.done);
+    if (!data.plans.length) {
+      return [el('section', { class: 'card goal-empty' },
+        el('span', { class: 'goal-empty-icon', html: Icons.target }),
+        el('h3', { text: 'Set a core goal' }),
+        el('p', { class: 'card-sub', text: 'Pick the big thing you want to achieve and, if you like, a date to reach it by. Then break it down into:' }),
+        el('ol', { class: 'core-steps' },
+          el('li', { text: 'A goal for each month' }),
+          el('li', { text: 'A goal for each of the month’s 4 weeks' }),
+          el('li', { text: 'Tasks for each week, which show up in Tasks with their due date' })),
+        el('button', { type: 'button', class: 'btn primary small', text: 'Set a core goal', onclick: newPlan }))];
+    }
+    const cards = [el('section', { class: 'card' },
+      el('div', { class: 'card-head' },
+        el('h3', { text: 'Core goals' }),
+        el('button', { type: 'button', class: 'link', text: 'New core goal', onclick: newPlan })),
+      active.length
+        ? el('ul', { class: 'goal-list' }, active.map(planCard))
+        : el('p', { class: 'stats-empty', text: 'Every goal here is achieved. Time to set the next one.' }))];
+    if (achieved.length) {
+      cards.push(el('section', { class: 'card' },
+        el('div', { class: 'card-head' }, el('h3', { text: 'Achieved' }), el('span', { class: 'card-sub', text: String(achieved.length) })),
+        el('ul', { class: 'goal-list' }, achieved.map(planCard))));
+    }
+    return cards;
+  }
+
+  function taskRow(task, [from, to]) {
+    const title = el('input', {
+      class: 'plan-item-text',
+      maxlength: 200,
+      'aria-label': 'Task',
+      onchange: () => {
+        const value = title.value.trim();
+        if (value && value !== task.title) Tasks.update(task.id, { title: value });
+        else title.value = task.title;
+      },
+    });
+    title.value = task.title;
+    const date = el('input', {
+      type: 'date',
+      class: 'step-date',
+      min: from,
+      max: to,
+      title: 'Due date (optional)',
+      'aria-label': 'Due date',
+      onchange: () => {
+        Tasks.update(task.id, { date: date.value, time: date.value ? task.time : '' });
+        render();
+      },
+    });
+    date.value = task.date || '';
+    return el('li', { class: `plan-item step${task.done ? ' done' : ''}` },
+      el('button', {
+        type: 'button',
+        class: 'check',
+        title: task.done ? 'Mark as not done' : 'Mark as done',
+        'aria-pressed': task.done ? 'true' : 'false',
+        html: task.done ? Icons.check : '',
+        onclick: () => {
+          Tasks.toggle(task.id);
+          render();
+        },
+      }),
+      title,
+      el('span', { class: 'step-when-wrap' }, date),
+      el('button', {
+        type: 'button',
+        class: 'icon-btn sm del',
+        title: 'Delete task',
+        'aria-label': 'Delete task',
+        html: Icons.trash,
+        onclick: () => {
+          Tasks.remove(task.id);
+          render();
+        },
+      }));
+  }
+
+  function weekBlock(plan, monthKey, index) {
+    const span = weekSpan(monthKey, index);
+    const today = Dates.key();
+    const tasks = weekTasks(plan, monthKey, index);
+    const draftId = `${plan.id}:${monthKey}:${index}`;
+    const draft = el('input', {
+      class: 'plan-item-text core-draft',
+      maxlength: 200,
+      placeholder: '+ Add a task',
+      'data-draft': draftId,
+    });
+    const addTask = (refocus) => {
+      const value = draft.value.trim();
+      if (!value) return;
+      draft.value = '';
+      Tasks.add({
+        title: value,
+        category: plan.title.trim().slice(0, 40),
+        goalLink: { plan: plan.id, month: monthKey, week: index },
+      });
+      planFocus = refocus ? { draft: draftId } : null;
+      render();
+    };
+    draft.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      addTask(true);
+    });
+    draft.addEventListener('change', () => addTask(false));
+
+    const done = tasks.filter((t) => t.done).length;
+    return el('div', { class: `core-week${today >= span[0] && today <= span[1] ? ' now' : ''}` },
+      el('div', { class: 'core-week-head' },
+        el('b', { text: `Week ${index + 1}` }),
+        el('span', { class: 'card-sub', text: spanText(span) }),
+        tasks.length ? el('span', { class: 'card-sub core-count', text: `${done}/${tasks.length} done` }) : null),
+      planInput(plan.months?.[monthKey]?.weeks?.[index], {
+        placeholder: 'Goal for this week',
+        className: 'plan-item-text core-week-goal',
+        onInput: (v) => { monthRecord(plan, monthKey).weeks[index] = v; },
+      }),
+      el('ul', { class: 'plan-items' }, tasks.map((t) => taskRow(t, span))),
+      draft);
+  }
+
+  function monthSection(plan, monthKey, months) {
+    const current = monthOfKey(Dates.key());
+    const openByDefault = monthKey === current || (months[0] > current && monthKey === months[0]);
+    const id = `${plan.id}:${monthKey}`;
+    const open = openByDefault !== toggledMonths.has(id);
+    const tasks = linkedTasks(plan).filter((t) => t.goalLink.month === monthKey);
+    const goal = plan.months?.[monthKey]?.text?.trim();
+    const label = monthName(monthKey, Dates.parse(monthKey).getFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {});
+    return el('section', { class: `card core-month${monthKey < current ? ' past' : ''}${monthKey === current ? ' now' : ''}` },
+      el('button', {
+        type: 'button',
+        class: 'core-month-head',
+        'aria-expanded': open ? 'true' : 'false',
+        onclick: () => {
+          flushPlans();
+          if (toggledMonths.has(id)) toggledMonths.delete(id);
+          else toggledMonths.add(id);
+          render();
+        },
+      },
+        el('span', { class: `core-chevron${open ? ' open' : ''}`, html: Icons.chevronRight }),
+        el('span', { class: 'core-month-text' },
+          el('b', { text: label }),
+          el('span', { class: 'card-sub', text: goal || (monthKey === current ? 'This month · no goal yet' : 'No goal yet') })),
+        tasks.length ? el('span', { class: 'card-sub', text: `${tasks.filter((t) => t.done).length}/${tasks.length} tasks` }) : null),
+      open
+        ? el('div', { class: 'core-month-body' },
+          el('label', { class: 'plan-label', text: `Goal for ${monthName(monthKey)}` }),
+          planInput(plan.months?.[monthKey]?.text, {
+            placeholder: `What does ${monthName(monthKey)} need to get done?`,
+            className: 'plan-item-text core-month-goal',
+            onInput: (v) => { monthRecord(plan, monthKey).text = v; },
+          }),
+          [0, 1, 2, 3].map((i) => weekBlock(plan, monthKey, i)))
+        : null);
+  }
+
+  function planDetail(plan) {
+    const months = planMonths(plan);
+    const byInput = el('input', {
+      type: 'date',
+      class: 'step-date core-by',
+      'aria-label': 'Achieve it by',
+      onchange: () => {
+        plan.by = byInput.value;
+        save();
+        render();
+      },
+    });
+    byInput.value = plan.by || '';
+    const why = el('textarea', {
+      class: 'plan-area',
+      rows: 2,
+      placeholder: 'Why it matters, so you remember on the hard days (optional)',
+      oninput: () => {
+        plan.why = why.value;
+        savePlansSoon();
+      },
+      onchange: flushPlans,
+    });
+    why.value = plan.why || '';
+
+    return [
+      el('div', { class: 'core-nav' },
+        el('button', { type: 'button', class: 'link', text: '‹ All goals', onclick: closePlan }),
+        el('span', { class: 'card-actions' },
+          el('button', {
+            type: 'button',
+            class: 'link',
+            text: plan.done ? 'Not achieved yet' : 'Mark achieved',
+            onclick: () => {
+              plan.done = !plan.done;
+              save();
+              if (plan.done) Toast.show(`Achieved: ${plan.title.trim() || 'goal'} 🏆`);
+              render();
+            },
+          }),
+          el('button', { type: 'button', class: 'icon-btn sm del', title: 'Delete this goal', 'aria-label': 'Delete this goal', html: Icons.trash, onclick: () => removePlan(plan) }))),
+      el('section', { class: 'card core-head' },
+        el('label', { class: 'plan-label first', text: 'Core goal' }),
+        planInput(plan.title, {
+          placeholder: 'The big thing you want to achieve',
+          className: 'core-title',
+          id: plan.id,
+          onInput: (v) => { plan.title = v; },
+          // Its tasks are filed under the goal's name in Tasks, so they follow a new name.
+          onCommit: (v) => {
+            const category = v.trim().slice(0, 40);
+            for (const t of linkedTasks(plan)) if (t.category !== category) Tasks.update(t.id, { category });
+          },
+        }),
+        el('div', { class: 'core-by-row' },
+          el('span', { class: 'plan-label', text: 'Achieve it by' }),
+          byInput,
+          plan.by ? el('button', { type: 'button', class: 'link', text: 'Clear', onclick: () => { plan.by = ''; save(); render(); } }) : null,
+          el('span', { class: 'card-sub', text: plan.by ? dueText(plan) : 'Optional' })),
+        why),
+      el('p', { class: 'core-hint', text: 'Give each month a goal, split it across its 4 weeks, and add tasks to each week. Tasks show up in Tasks, with their due date if you pick one.' }),
+      ...months.map((k) => monthSection(plan, k, months)),
+      plan.by
+        ? null
+        : el('button', {
+          type: 'button',
+          class: 'plan-add core-more',
+          onclick: () => {
+            plan.extraMonths = (plan.extraMonths || 0) + 1;
+            save();
+            render();
+          },
+        }, el('span', { html: Icons.plus }), 'Plan another month'),
+    ];
+  }
+
+  // ---------- used by the Planner ----------
+  // This month's goal from every core goal still going.
+  function monthGoalsFor(monthKey) {
+    return data.plans
+      .filter((p) => !p.done && p.months?.[monthKey]?.text?.trim())
+      .map((p) => ({ text: p.months[monthKey].text.trim(), goal: p.title.trim() }));
+  }
+
+  // The weekly goals, from every core goal still going, of the weeks these days fall in.
+  function weekGoalsFor(keys) {
+    const weeks = [...new Set(keys.map((k) => `${monthOfKey(k)}|${weekOfKey(k)}`))];
+    const out = [];
+    for (const p of data.plans) {
+      if (p.done) continue;
+      for (const w of weeks) {
+        const [monthKey, index] = w.split('|');
+        const text = p.months?.[monthKey]?.weeks?.[index]?.trim();
+        if (text) out.push({ text, goal: p.title.trim(), label: `Week ${Number(index) + 1} of ${monthName(monthKey)}` });
+      }
+    }
+    return out;
+  }
+
   // ---------- render ----------
   function render() {
-    const sections = [];
+    const plan = openPlanId && findPlan(openPlanId);
+    if (plan) {
+      $('#goals-body').replaceChildren(...planDetail(plan).filter(Boolean));
+      $('#goals-stats').textContent = dueText(plan);
+      const focus = planFocus;
+      planFocus = null;
+      if (focus?.id) $(`#goals-body [data-id="${focus.id}"]`)?.focus();
+      if (focus?.draft) $(`#goals-body [data-draft="${focus.draft}"]`)?.focus();
+      return;
+    }
+    openPlanId = null;
+    const sections = [...coreCards()];
     if (!data.goals.length) sections.push(emptyCard());
     let done = 0;
     for (const kind of ['week', 'month']) {
@@ -290,14 +742,29 @@ const Goals = (() => {
       if (!goals.length) continue;
       const p = period(kind);
       done += goals.filter((g) => progress(g).state === 'done').length;
-      const label = kind === 'week' ? 'This week' : Dates.parse(p.start).toLocaleDateString(undefined, { month: 'long' });
+      const label = kind === 'week' ? 'Targets this week' : `Targets for ${Dates.parse(p.start).toLocaleDateString(undefined, { month: 'long' })}`;
       sections.push(el('section', { class: 'card' },
-        el('div', { class: 'card-head' }, el('h3', { text: label }), el('span', { class: 'card-sub', text: `${plural(p.daysLeft, 'day')} left` })),
+        el('div', { class: 'card-head' },
+          el('h3', { text: label }),
+          el('span', { class: 'card-actions' },
+            el('span', { class: 'card-sub', text: `${plural(p.daysLeft, 'day')} left` }),
+            el('button', { type: 'button', class: 'link', text: 'Add target', onclick: () => openForm() }))),
         el('ul', { class: 'goal-list' }, goals.map(goalItem))));
     }
     sections.push(attentionCard(), compareCard());
     $('#goals-body').replaceChildren(...sections);
-    $('#goals-stats').textContent = data.goals.length ? `${done} of ${data.goals.length} reached` : '';
+    const active = data.plans.filter((p) => !p.done).length;
+    $('#goals-stats').textContent = [
+      active ? plural(active, 'core goal') : '',
+      data.goals.length ? `${done} of ${plural(data.goals.length, 'target')} reached` : '',
+    ].filter(Boolean).join(' · ');
+  }
+
+  // The periodic refresh leaves the view alone while you're typing in it.
+  function refresh() {
+    const active = document.activeElement;
+    if (active && $('#goals-body').contains(active) && active.matches('input, textarea, select')) return;
+    render();
   }
 
   // ---------- form ----------
@@ -348,8 +815,8 @@ const Goals = (() => {
     editingId = goal?.id ?? null;
     const g = goal || preset || { type: 'tasks', period: 'week', target: 10 };
     populateForm();
-    $('#goal-form-title').textContent = goal ? 'Edit goal' : 'New goal';
-    $('#g-submit').textContent = goal ? 'Save' : 'Add goal';
+    $('#goal-form-title').textContent = goal ? 'Edit target' : 'New target';
+    $('#g-submit').textContent = goal ? 'Save' : 'Add target';
     $('#g-delete').hidden = !goal;
     $('#g-type').value = TYPES.includes(g.type) ? g.type : 'tasks';
     if ($('#g-type').selectedOptions[0]?.disabled) $('#g-type').value = 'tasks';
@@ -371,7 +838,7 @@ const Goals = (() => {
     const [goal] = data.goals.splice(index, 1);
     save();
     render();
-    Toast.show('Goal deleted', () => {
+    Toast.show('Target deleted', () => {
       data.goals.splice(Math.min(index, data.goals.length), 0, goal);
       save();
       render();
@@ -431,5 +898,5 @@ const Goals = (() => {
     });
   }
 
-  return { init, render, openForm, checkReached, progress, attention, list: () => data.goals };
+  return { init, render, refresh, openForm, newPlan, checkReached, progress, attention, monthGoalsFor, weekGoalsFor, list: () => data.goals };
 })();

@@ -2,13 +2,13 @@
 
 A small desktop widget for Windows that sits on your desktop and keeps your day in one place.
 
-- **Planner**: plan a day hour by hour with your top priorities and a note on what to improve, rate each day as rough, average or good, review the week (Monday to Sunday) with goals that carry over into the next one, and see the whole month coloured by how each day went — click a day to open it
+- **Planner**: plan a day hour by hour with your top priorities and a note on what to improve, rate each day as rough, average or good and say whether it moved your weekly and monthly goals forward, review the week (Monday to Sunday), set goals for the week and the month and break them into steps with a rough day or week, and see the whole month coloured by how each day went — click a day for a summary you can copy
 - **Tasks**: due dates and times, importance, categories, reminders and repeating tasks (daily, weekdays, weekly, monthly or custom days)
 - **Habits**: a monthly grid, with habits you tick off or count towards a daily goal (like 20 pages)
 - **Prayer times**: calculated on your computer for your city, with notifications. Tap a prayer to mark it as prayed.
 - **Deen**: a daily Quran verse or hadith with lessons from it (browse more by category and save favourites), prayers marked this week, Quran reading progress, a tasbih counter, upcoming Islamic dates and the Qibla direction
 - **Journal**: notes like the iPhone Notes app, with categories, pinning, search and an optional PIN lock
-- **Goals**: weekly or monthly goals that fill in by themselves from your tasks, habits, prayers and Quran reading, whether you're on pace, what needs attention, and this week compared with last
+- **Goals**: core goals with a date to reach them by, split into a goal for each month, each month into 4 weeks, and each week into tasks that show up in Tasks with their due date; plus weekly or monthly targets that fill in by themselves from your tasks, habits, prayers and Quran reading, what needs attention, and this week compared with last
 - **Linked calendars**: events and deadlines from Google Calendar, Outlook, Apple iCloud or Canvas show up in Tasks
 - Light and dark mode, pin to desktop, drag to move, a shortcut to open it (Ctrl + Alt + T) and backups
 

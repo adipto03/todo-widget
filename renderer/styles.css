@@ -1478,3 +1478,140 @@ p.card-sub { margin-top: 8px; }
 .month-key.rate-ok { --dot: color-mix(in srgb, var(--medium) 40%, transparent); }
 .month-key.rate-good { --dot: color-mix(in srgb, var(--low) 40%, transparent); }
 .month-key.planned::before { width: 5px; height: 5px; margin: 0 2px; border: 0; border-radius: 50%; background: var(--muted); }
+
+/* goals broken down into steps */
+.step-toggle {
+  flex: none;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.step-toggle:hover { border-color: var(--accent); color: var(--accent); }
+.step-toggle.open { border-color: color-mix(in srgb, var(--accent) 45%, transparent); color: var(--accent); }
+.goal-steps { margin: 0 0 8px 11px; padding-left: 14px; border-left: 2px solid var(--border); }
+.plan-item.step { flex-wrap: wrap; row-gap: 2px; }
+.plan-item.step .plan-item-text { flex: 1 1 120px; font-size: 12.5px; }
+.step-when-wrap { display: flex; flex: none; gap: 4px; margin-left: auto; }
+.step-when, .step-date {
+  max-width: 112px;
+  padding: 2px 4px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 11.5px;
+}
+.step-date { max-width: 124px; }
+.plan-add.sm { padding: 2px 8px; font-size: 11.5px; }
+.plan-add.sm svg { width: 11px; height: 11px; }
+
+/* steps shown on the day or week they are planned for */
+.linked-text { display: flex; flex: 1; flex-direction: column; min-width: 0; padding: 2px 0; }
+.plan-item-label { font-size: 13px; }
+.plan-item.done .plan-item-label { color: var(--muted); text-decoration: line-through; }
+.linked-goal { overflow: hidden; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+
+/* whether the day was in line with the goals */
+.goal-hint { margin: -2px 0 6px; color: var(--muted); font-size: 11.5px; overflow-wrap: anywhere; }
+.plan-rate.align .rate-btn { padding: 4px; }
+
+/* a day's summary under the month calendar */
+.month-cell.selected { outline: 2px solid var(--text); outline-offset: 1px; }
+.day-summary .card-head { flex-wrap: wrap; }
+.sum-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.sum-tag {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.sum-tag.rate-good { border-color: color-mix(in srgb, var(--low) 45%, transparent); background: color-mix(in srgb, var(--low) 12%, transparent); color: var(--low); }
+.sum-tag.rate-ok { border-color: color-mix(in srgb, var(--medium) 45%, transparent); background: color-mix(in srgb, var(--medium) 12%, transparent); color: var(--medium); }
+.sum-tag.rate-bad { border-color: color-mix(in srgb, var(--high) 45%, transparent); background: color-mix(in srgb, var(--high) 12%, transparent); color: var(--high); }
+.sum-section h4 { margin: 10px 0 3px; color: var(--muted); font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.sum-line { font-size: 12.5px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+.sum-line.sub { padding-left: 12px; color: var(--muted); }
+
+/* ---------- core goals: a big goal split into months, weeks and tasks ---------- */
+.core-steps { margin: 0; padding-left: 20px; color: var(--muted); font-size: 12px; line-height: 1.6; text-align: left; }
+.core-goal .goal-value { font-size: 11.5px; }
+.core-line { display: flex; gap: 6px; min-width: 0; font-size: 12px; color: var(--muted); }
+.core-line b { flex: none; min-width: 72px; color: var(--text); font-weight: 600; }
+.core-line span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.core-goal.done .goal-title { color: var(--muted); }
+
+.core-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 2px 6px; }
+.core-nav .card-actions { gap: 8px; }
+.core-nav .del { opacity: 1; }
+.core-nav .del:hover { color: var(--danger); }
+.plan-label.first { margin-top: 0; }
+.core-title {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg);
+  font-size: 15px;
+  font-weight: 600;
+}
+.core-title:focus, .core-month-goal:focus, .core-week-goal:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+.core-by-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 10px 0 8px; }
+.core-by-row .plan-label { margin: 0; }
+.core-by { max-width: 140px; }
+.core-hint { margin: 2px 4px 8px; color: var(--muted); font-size: 11.5px; line-height: 1.45; }
+
+.core-month { padding: 0; overflow: hidden; }
+.core-month.now { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+.core-month-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+.core-month-head:hover { background: var(--surface-2); }
+.core-month.past .core-month-text b { color: var(--muted); }
+.core-month-text { display: flex; flex: 1; flex-direction: column; min-width: 0; }
+.core-month-text b { font-size: 13px; }
+.core-month-text .card-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.core-chevron { display: grid; flex: none; color: var(--muted); transition: transform 0.15s; }
+.core-chevron svg { width: 14px; height: 14px; }
+.core-chevron.open { transform: rotate(90deg); }
+.core-month-body { padding: 0 12px 10px; }
+.core-month-body > .plan-label { margin-top: 2px; }
+.core-month-goal { width: 100%; border-color: var(--border); background: var(--bg); font-weight: 600; }
+
+.core-week { margin-top: 10px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; }
+.core-week.now { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 5%, transparent); }
+.core-week-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
+.core-week-head b { font-size: 12.5px; }
+.core-week.now .core-week-head b { color: var(--accent); }
+.core-count { margin-left: auto; }
+.core-week-goal { width: 100%; margin-bottom: 2px; font-weight: 600; }
+.core-draft { width: 100%; margin-top: 2px; font-size: 12.5px; }
+.core-more { margin: 0 0 8px; }
+
+/* core goal lines shown in the Planner */
+.core-links { list-style: none; margin: 0 0 6px; padding: 0; }
+.core-links button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 3px 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+.core-links button:hover .plan-item-label { color: var(--accent); }
+.core-link-icon { flex: none; width: 20px; font-size: 13px; text-align: center; }

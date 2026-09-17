@@ -419,6 +419,40 @@ const Tasks = (() => {
     render();
   }
 
+  // ---------- used by other tabs ----------
+  // Goals adds the tasks of a week's plan here, so they show with their due date and tick off in either place.
+  function add(fields) {
+    const task = {
+      id: uid(),
+      title: '',
+      date: '',
+      time: '',
+      importance: 'medium',
+      category: '',
+      remind: Settings.data.notifications.taskDefault,
+      repeat: '',
+      repeatDays: [],
+      done: false,
+      createdAt: Date.now(),
+      ...fields,
+    };
+    tasks.push(task);
+    commit();
+    return task;
+  }
+
+  function update(id, fields) {
+    const t = tasks.find((x) => x.id === id);
+    if (!t) return;
+    Object.assign(t, fields);
+    commit();
+  }
+
+  function toggle(id) {
+    const t = tasks.find((x) => x.id === id);
+    if (t) toggleDone(t);
+  }
+
   // Removes matching tasks without asking, e.g. calendar events that are over or were cancelled.
   function removeWhere(test) {
     const before = tasks.length;
@@ -522,5 +556,9 @@ const Tasks = (() => {
     isOverdue,
     list: () => tasks,
     nextOccurrence,
+    add,
+    update,
+    toggle,
+    remove,
   };
 })();
