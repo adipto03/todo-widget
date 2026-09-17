@@ -1,6 +1,6 @@
 {
   "name": "todo-widget",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "A desktop widget for Windows with a daily and weekly planner, tasks, a monthly habit tracker, prayer times, a Deen tab, a journal, goals and linked calendars",
   "author": "adipto03",
   "license": "MIT",
@@ -43,12 +43,23 @@
       "output": "dist",
       "buildResources": "build"
     },
+    "compression": "maximum",
+    "electronLanguages": [
+      "en-US"
+    ],
+    "afterPack": "scripts/after-pack.js",
     "files": [
       "main.js",
       "preload.js",
       "desktop-pin.js",
       "renderer/**/*",
-      "package.json"
+      "package.json",
+      "!node_modules/**/*.{md,map,d.ts,tsbuildinfo}",
+      "!node_modules/koffi/{doc,vendor}/**",
+      "!node_modules/koffi/src/**/*.{cc,hh,inc,txt,S,asm,def}",
+      "!node_modules/@koromix/*/**/*.lib",
+      "!node_modules/adhan/lib/{bundles,esm,types}/**",
+      "!node_modules/adhan/*.cjs"
     ],
     "asarUnpack": [
       "node_modules/koffi/**/*"
